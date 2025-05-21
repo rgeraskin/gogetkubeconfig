@@ -27,10 +27,17 @@ type Server struct {
 
 // NewServer creates a new server instance
 func NewServer(appConfig *Server) (*Server, error) {
-	return &Server{
+	server := &Server{
 		ConfigsDir: appConfig.ConfigsDir,
 		Logger:     appConfig.Logger,
-	}, nil
+	}
+
+	// Check that index can be generated
+	err := server.TemplateIndex(nil)
+	if err != nil {
+		return nil, errorx.Decorate(err, "can't generate index page")
+	}
+	return server, nil
 }
 
 // Start starts the http server
@@ -49,29 +56,37 @@ func (s *Server) Start(port string) error {
 	return nil
 }
 
-// Index handles the root route
-func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
+func (s *Server) TemplateIndex(w http.ResponseWriter) error {
 	// html template with list of available configs
 	tmpl, err := template.ParseFiles(templateIndex)
 	if err != nil {
-		s.Logger.Error("Failed to parse index template file", "error", err)
-		http.Error(w, "Failed to parse index template file", http.StatusInternalServerError)
-		return
+		return errorx.Decorate(err, "failed to parse index template file")
 	}
 	names, err := s.ListConfigs()
 	if err != nil {
-		s.Logger.Error("Failed to list configs in dir", "error", err)
-		http.Error(w, "Failed to list configs in dir", http.StatusInternalServerError)
-		return
+		return errorx.Decorate(err, "failed to list configs in dir")
 	}
 	vals := map[string][]string{
 		"names": names,
 	}
-	err = tmpl.Execute(w, vals)
+
+	// Only execute the template if the writer is not nil
+	if w != nil {
+		err = tmpl.Execute(w, vals)
+		if err != nil {
+			return errorx.Decorate(err, "failed to execute index template")
+		}
+	}
+
+	return nil
+}
+
+// Index handles the root route
+func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
+	err := s.TemplateIndex(w)
 	if err != nil {
-		s.Logger.Error("Failed to execute index template", "error", err)
-		http.Error(w, "Failed to execute index template", http.StatusInternalServerError)
-		return
+		s.Logger.Error(err)
+		http.Error(w, "Failed to template index", http.StatusInternalServerError)
 	}
 }
 

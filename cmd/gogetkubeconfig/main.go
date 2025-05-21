@@ -78,6 +78,7 @@ func validateKubeConfigs(c *AppConfig) error {
 		return errorx.Decorate(err, "can't read configs directory")
 	}
 
+	// Check if all files are valid kubeconfigs
 	for _, file := range files {
 		filePath := filepath.Join(c.ConfigsDir, file.Name())
 		c.Logger.Debug("Checking if config file is valid kubeconfig", "path", filePath)
