@@ -15,6 +15,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	templateIndex = "web/templates/index.html"
+)
+
 // Server represents the API server
 type Server struct {
 	ConfigsDir string
@@ -48,16 +52,27 @@ func (s *Server) Start(port string) error {
 // Index handles the root route
 func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	// html template with list of available configs
-	tmpl := template.Must(template.ParseFiles("templates/index.html"))
+	tmpl, err := template.ParseFiles(templateIndex)
+	if err != nil {
+		s.Logger.Error("Failed to parse index template file", "error", err)
+		http.Error(w, "Failed to parse index template file", http.StatusInternalServerError)
+		return
+	}
 	names, err := s.ListConfigs()
 	if err != nil {
 		s.Logger.Error("Failed to list configs in dir", "error", err)
 		http.Error(w, "Failed to list configs in dir", http.StatusInternalServerError)
 		return
 	}
-	tmpl.Execute(w, map[string]any{
-		"Configs": names,
-	})
+	vals := map[string][]string{
+		"names": names,
+	}
+	err = tmpl.Execute(w, vals)
+	if err != nil {
+		s.Logger.Error("Failed to execute index template", "error", err)
+		http.Error(w, "Failed to execute index template", http.StatusInternalServerError)
+		return
+	}
 }
 
 // ListConfigsYaml lists all available kubeconfigs in YAML format
