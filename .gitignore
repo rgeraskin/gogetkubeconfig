@@ -26,3 +26,5 @@
 .DS_Storeconfigs
 
 /_configs
+/dist/
+/cmd/kubedepot/kodata/

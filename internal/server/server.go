@@ -1,6 +1,7 @@
 package server
 
 import (
+	"embed"
 	"encoding/json"
 	"html/template"
 	"io"
@@ -20,6 +21,7 @@ type Server struct {
 	WebDir        string
 	Logger        *log.Logger
 	LoadedConfigs map[string]*KubeConfig // Pre-loaded configs to avoid file system changes affecting runtime
+	EmbeddedFiles *embed.FS              // Optional embedded files for container deployment
 }
 
 // NewServer creates a new server instance
@@ -29,6 +31,7 @@ func NewServer(appConfig *Server) (*Server, error) {
 		WebDir:        appConfig.WebDir,
 		Logger:        appConfig.Logger,
 		LoadedConfigs: make(map[string]*KubeConfig),
+		EmbeddedFiles: appConfig.EmbeddedFiles,
 	}
 
 	// Load all configs on startup
@@ -52,12 +55,30 @@ func NewServer(appConfig *Server) (*Server, error) {
 // Note: Start method moved to router.go for better separation of concerns
 
 func (s *Server) TemplateIndex(w http.ResponseWriter) error {
-	// html template with list of available configs
+	var tmpl *template.Template
+	var err error
+
+	// Try to load from WebDir first (for development)
 	templatePath := filepath.Join(s.WebDir, "index.html")
-	tmpl, err := template.ParseFiles(templatePath)
-	if err != nil {
-		return errorx.Decorate(err, "failed to parse index template file")
+	if _, err := os.Stat(templatePath); err == nil {
+		tmpl, err = template.ParseFiles(templatePath)
+		if err != nil {
+			return errorx.Decorate(err, "failed to parse index template file from WebDir")
+		}
+	} else if s.EmbeddedFiles != nil {
+		// Fall back to embedded files (for production/container)
+		templateContent, err := s.EmbeddedFiles.ReadFile("kodata/web/index.html")
+		if err != nil {
+			return errorx.Decorate(err, "failed to read embedded index template")
+		}
+		tmpl, err = template.New("index.html").Parse(string(templateContent))
+		if err != nil {
+			return errorx.Decorate(err, "failed to parse embedded index template")
+		}
+	} else {
+		return errorx.InternalError.New("neither WebDir nor EmbeddedFiles available for template")
 	}
+
 	names, err := s.listConfigs()
 	if err != nil {
 		return errorx.Decorate(err, "failed to list configs in dir")

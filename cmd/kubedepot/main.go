@@ -1,9 +1,14 @@
 package main
 
 import (
+	"embed"
+
 	"github.com/rgeraskin/kubedepot/internal/config"
 	"github.com/rgeraskin/kubedepot/internal/server"
 )
+
+//go:embed kodata/web/*
+var embeddedFiles embed.FS
 
 func main() {
 	// Load configuration
@@ -25,9 +30,10 @@ func main() {
 
 	// Create server configuration
 	serverConfig := &server.Server{
-		ConfigsDir: cfg.ConfigsDir,
-		WebDir:     cfg.WebDir,
-		Logger:     logger,
+		ConfigsDir:    cfg.ConfigsDir,
+		WebDir:        cfg.WebDir,
+		Logger:        logger,
+		EmbeddedFiles: &embeddedFiles,
 	}
 
 	// Create and start server
