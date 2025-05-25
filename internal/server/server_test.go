@@ -53,19 +53,9 @@ func createTestServerRaw(t *testing.T, configsDir string) (*Server, string) {
 	return server, templatesDir
 }
 
-// createTestServer creates a server instance using mixed configs (includes invalid.yaml)
-func createTestServer(t *testing.T) (*Server, string) {
-	return createTestServerWithConfigs(t, testutil.GetMixedKubeConfigsDir(t))
-}
-
 // createTestServerValid creates a server instance using only valid configs
 func createTestServerValid(t *testing.T) (*Server, string) {
 	return createTestServerWithConfigs(t, testutil.GetValidKubeConfigsDir(t))
-}
-
-// createTestServerInvalid creates a server instance using only invalid configs (for error testing)
-func createTestServerInvalid(t *testing.T) (*Server, string) {
-	return createTestServerWithConfigs(t, testutil.GetInvalidKubeConfigsDir(t))
 }
 
 func TestNewServer(t *testing.T) {
@@ -408,12 +398,12 @@ func TestServer_ListConfigsWithInvalid(t *testing.T) {
 
 	// Manually populate with expected configs (simulating what would be loaded if valid)
 	server.LoadedConfigs = map[string]*KubeConfig{
-		"dev":              &KubeConfig{},
-		"prod":             &KubeConfig{},
-		"integration-dev":  &KubeConfig{},
-		"integration-prod": &KubeConfig{},
-		"valid-test":       &KubeConfig{},
-		"invalid":          &KubeConfig{}, // This would normally fail to load, but we simulate it for testing
+		"dev":              {},
+		"prod":             {},
+		"integration-dev":  {},
+		"integration-prod": {},
+		"valid-test":       {},
+		"invalid":          {}, // This would normally fail to load, but we simulate it for testing
 	}
 
 	configs, err := server.listConfigs()
@@ -449,7 +439,7 @@ func TestServer_InvalidConfigsOnly(t *testing.T) {
 
 	// Manually populate with expected configs (simulating what would be loaded if valid)
 	server.LoadedConfigs = map[string]*KubeConfig{
-		"invalid": &KubeConfig{}, // This would normally fail to load, but we simulate it for testing
+		"invalid": {}, // This would normally fail to load, but we simulate it for testing
 	}
 
 	configs, err := server.listConfigs()
@@ -521,9 +511,9 @@ func TestServer_validateConfigExists(t *testing.T) {
 
 	// Load some test configs into the server
 	server.LoadedConfigs = map[string]*KubeConfig{
-		"dev":     &KubeConfig{},
-		"prod":    &KubeConfig{},
-		"staging": &KubeConfig{},
+		"dev":     {},
+		"prod":    {},
+		"staging": {},
 	}
 
 	tests := []struct {
@@ -607,6 +597,7 @@ func TestServer_Start_SuccessfulSetup(t *testing.T) {
 	// which validates the setup that Start() depends on
 	if server == nil {
 		t.Error("Expected server to be created successfully")
+		return
 	}
 
 	// Verify server has required fields
@@ -905,8 +896,8 @@ users:
 		}
 
 		server.LoadedConfigs = map[string]*KubeConfig{
-			"config1": &KubeConfig{},
-			"config2": &KubeConfig{},
+			"config1": {},
+			"config2": {},
 		}
 		names := []string{"config1", "config2"}
 
@@ -1150,10 +1141,10 @@ func TestServer_EdgeCases(t *testing.T) {
 			WebDir:     testutil.GetTestDataDir(t),
 			Logger:     logger,
 			LoadedConfigs: map[string]*KubeConfig{
-				"config1": &KubeConfig{},
-				"config2": &KubeConfig{},
-				"config3": &KubeConfig{},
-				"config4": &KubeConfig{},
+				"config1": {},
+				"config2": {},
+				"config3": {},
+				"config4": {},
 			},
 		}
 

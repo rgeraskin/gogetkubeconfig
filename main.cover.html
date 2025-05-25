@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/rgeraskin/gogetkubeconfig/cmd/gogetkubeconfig/main.go (53.3%)</option>
+				<option value="file0">github.com/rgeraskin/gogetkubeconfig/cmd/gogetkubeconfig/main.go (0.0%)</option>
 				
 				</select>
 			</div>
@@ -72,85 +72,43 @@
 		<pre class="file" id="file0" style="display: none">package main
 
 import (
-        "os"
-
-        "github.com/charmbracelet/log"
+        "github.com/rgeraskin/gogetkubeconfig/internal/config"
         "github.com/rgeraskin/gogetkubeconfig/internal/server"
 )
 
-// default values
-const (
-        defaultPort               = "8080"
-        defaultConfigsDir         = "./configs"
-        defaultWebDir             = "./web"
-        defaultDefaultsConfigName = "defaults.yaml"
-)
-
-// AppConfig represents the application configuration
-type AppConfig struct {
-        server.Server
-        Port string
-}
-
-// newConfig creates a new app Config
-func newAppConfig(logger *log.Logger) (*AppConfig, error) <span class="cov8" title="1">{
-        config := &amp;AppConfig{
-                Server: server.Server{
-                        Logger: logger,
-                },
+func main() <span class="cov0" title="0">{
+        // Load configuration
+        cfg, err := config.NewConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                panic("Failed to load configuration: " + err.Error())</span>
         }
 
-        config.ConfigsDir = os.Getenv("CONFIGS_DIR")
-        if config.ConfigsDir == "" </span><span class="cov0" title="0">{
-                config.ConfigsDir = defaultConfigsDir
-        }</span>
+        <span class="cov0" title="0">logger := cfg.Logger
+        logger.Info("Starting gogetkubeconfig")
 
-        <span class="cov8" title="1">config.WebDir = os.Getenv("WEB_DIR")
-        if config.WebDir == "" </span><span class="cov8" title="1">{
-                config.WebDir = defaultWebDir
-        }</span>
+        // Log effective configuration
+        logger.Info("Configuration loaded",
+                "port", cfg.Port,
+                "configsDir", cfg.ConfigsDir,
+                "webDir", cfg.WebDir,
+                "debug", cfg.Debug,
+        )
 
-        <span class="cov8" title="1">config.Port = os.Getenv("PORT")
-        if config.Port == "" </span><span class="cov8" title="1">{
-                config.Port = defaultPort
-        }</span>
+        // Create server configuration
+        serverConfig := &amp;server.Server{
+                ConfigsDir: cfg.ConfigsDir,
+                WebDir:     cfg.WebDir,
+                Logger:     logger,
+        }
 
-        <span class="cov8" title="1">return config, nil</span>
-}
-
-func NewLogger() *log.Logger <span class="cov8" title="1">{
-        logger := log.New(os.Stderr)
-        logLevel := os.Getenv("DEBUG")
-        if logLevel != "" </span><span class="cov8" title="1">{
-                logger.SetLevel(log.DebugLevel)
-        }</span>
-        <span class="cov8" title="1">logger.SetReportTimestamp(true)
-        return logger</span>
-}
-
-func main() <span class="cov0" title="0">{
-        logger := NewLogger()
-
-        // Configuration
-        logger.Info("Creating config")
-        appConfig, err := newAppConfig(logger)
-        if err != nil </span><span class="cov0" title="0">{
-                logger.Fatalf("Failed to configure application: %+v", err)
-        }</span>
-
-        // Effective config
-        <span class="cov0" title="0">logger.Info("Effective application config", "config", appConfig)
-
-        // Create server
-        logger.Info("Creating server")
-        server, err := server.NewServer(&amp;appConfig.Server)
+        // Create and start server
+        srv, err := server.NewServer(serverConfig)
         if err != nil </span><span class="cov0" title="0">{
                 logger.Fatalf("Failed to initialize server: %+v", err)
         }</span>
 
-        // Start server
-        <span class="cov0" title="0">logger.Info("Starting server", "port", appConfig.Port)
-        if err := server.Start(appConfig.Port); err != nil </span><span class="cov0" title="0">{
+        <span class="cov0" title="0">logger.Info("Starting server", "port", cfg.Port)
+        if err := srv.Start(cfg.Port); err != nil </span><span class="cov0" title="0">{
                 logger.Fatalf("Server failed: %+v", err)
         }</span>
 }

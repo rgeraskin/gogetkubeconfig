@@ -49,21 +49,7 @@ func NewServer(appConfig *Server) (*Server, error) {
 	return server, nil
 }
 
-// Start starts the http server
-func (s *Server) Start(port string) error {
-	// Setup routes
-	http.HandleFunc("/json/list", s.HandleListConfigsJson)
-	http.HandleFunc("/yaml/list", s.HandleListConfigsYaml)
-	http.HandleFunc("/json/get", s.HandleGetKubeConfigsJson)
-	http.HandleFunc("/yaml/get", s.HandleGetKubeConfigsYaml)
-	http.HandleFunc("/", s.HandleIndex)
-
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		return errorx.Decorate(err, "failed to start server")
-	}
-
-	return nil
-}
+// Note: Start method moved to router.go for better separation of concerns
 
 func (s *Server) TemplateIndex(w http.ResponseWriter) error {
 	// html template with list of available configs
@@ -124,15 +110,7 @@ type Encoder interface {
 	Encode(v interface{}) error
 }
 
-// handleHTTPError logs an error and sends an HTTP error response
-func (s *Server) handleHTTPError(w http.ResponseWriter, err error, message string, statusCode int) {
-	s.Logger.Error(message, "error", err)
-	if err != nil {
-		http.Error(w, message+": "+err.Error(), statusCode)
-	} else {
-		http.Error(w, message, statusCode)
-	}
-}
+// Note: handleHTTPError moved to errors.go for better organization
 
 // createYAMLEncoder creates a YAML encoder with consistent formatting
 func createYAMLEncoder(w io.Writer) Encoder {
@@ -251,11 +229,7 @@ func (s *Server) HandleGetKubeConfigs(
 	// Load and merge the requested configs
 	kubeConfig, err := s.loadAndMergeConfigs(requestedNames)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			s.handleHTTPError(w, err, "", http.StatusNotFound)
-		} else {
-			s.handleHTTPError(w, err, "Failed to load and merge configs", http.StatusInternalServerError)
-		}
+		s.handleError(w, err, "Failed to load and merge configs")
 		return
 	}
 

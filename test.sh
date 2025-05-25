@@ -82,7 +82,8 @@ run_with_coverage() {
     print_status $BLUE "📊 Testing $description with coverage..."
     if go test -v -coverprofile="$coverfile" "$package"; then
         go tool cover -html="$coverfile" -o "${coverfile%.out}.html"
-        print_status $GREEN "✅ $description tests passed - coverage report: ${coverfile%.out}.html"
+        coverage=$(go tool cover -func="$coverfile" | grep total: | awk '{print $3}')
+        print_status $GREEN "✅ $description tests passed - coverage: $coverage - report: ${coverfile%.out}.html"
     else
         print_status $RED "❌ $description tests failed"
         exit 1
@@ -98,6 +99,9 @@ echo
 
 # Run unit tests for main package
 run_with_coverage "./cmd/gogetkubeconfig" "Main Application" "main.cover.out"
+
+# Run unit tests for config package
+run_with_coverage "./internal/config" "Configuration Package" "config.cover.out"
 
 # Run unit tests for server package
 run_with_coverage "./internal/server" "Server Package" "server.cover.out"
@@ -152,8 +156,24 @@ echo "mode: set" > coverage.out
 grep -h -v "^mode:" *.cover.out >> coverage.out || true
 if [ -f coverage.out ]; then
     go tool cover -html=coverage.out -o coverage.html
-    go tool cover -func=coverage.out | grep total:
-    print_status $GREEN "📊 Overall coverage report: coverage.html"
+    total_coverage=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}')
+    print_status $GREEN "📊 Overall coverage: $total_coverage - report: coverage.html"
+fi
+echo
+
+# Display individual package coverage summary
+print_status $BLUE "📋 Coverage Summary by Package:"
+if [ -f main.cover.out ]; then
+    main_coverage=$(go tool cover -func=main.cover.out | grep total: | awk '{print $3}')
+    print_status $YELLOW "   📦 Main Package: $main_coverage (Note: Low coverage expected - main.go has minimal testable code)"
+fi
+if [ -f config.cover.out ]; then
+    config_coverage=$(go tool cover -func=config.cover.out | grep total: | awk '{print $3}')
+    print_status $YELLOW "   ⚙️  Config Package: $config_coverage"
+fi
+if [ -f server.cover.out ]; then
+    server_coverage=$(go tool cover -func=server.cover.out | grep total: | awk '{print $3}')
+    print_status $YELLOW "   🖥️  Server Package: $server_coverage"
 fi
 echo
 
@@ -161,4 +181,5 @@ print_status $GREEN "🎉 All tests completed successfully!"
 print_status $YELLOW "📁 Generated files:"
 print_status $YELLOW "   - coverage.html (overall coverage)"
 print_status $YELLOW "   - main.cover.html (main package coverage)"
+print_status $YELLOW "   - config.cover.html (config package coverage)"
 print_status $YELLOW "   - server.cover.html (server package coverage)"

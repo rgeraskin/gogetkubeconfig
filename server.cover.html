@@ -55,9 +55,13 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/rgeraskin/gogetkubeconfig/internal/server/server.go (83.0%)</option>
+				<option value="file0">github.com/rgeraskin/gogetkubeconfig/internal/server/errors.go (68.8%)</option>
 				
-				<option value="file1">github.com/rgeraskin/gogetkubeconfig/internal/server/util.go (100.0%)</option>
+				<option value="file1">github.com/rgeraskin/gogetkubeconfig/internal/server/kubeconfig.go (100.0%)</option>
+				
+				<option value="file2">github.com/rgeraskin/gogetkubeconfig/internal/server/router.go (90.0%)</option>
+				
+				<option value="file3">github.com/rgeraskin/gogetkubeconfig/internal/server/server.go (83.4%)</option>
 				
 				</select>
 			</div>
@@ -72,6 +76,247 @@
 		<div id="content">
 		
 		<pre class="file" id="file0" style="display: none">package server
+
+import (
+        "net/http"
+        "strings"
+
+        "github.com/joomcode/errorx"
+)
+
+// ErrorType represents different types of errors
+type ErrorType int
+
+const (
+        ErrorTypeNotFound ErrorType = iota
+        ErrorTypeInternal
+        ErrorTypeBadRequest
+)
+
+// handleHTTPError logs an error and sends an HTTP error response
+func (s *Server) handleHTTPError(w http.ResponseWriter, err error, message string, statusCode int) <span class="cov8" title="1">{
+        s.Logger.Error(message, "error", err)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, message+": "+err.Error(), statusCode)
+        }</span> else<span class="cov0" title="0"> {
+                http.Error(w, message, statusCode)
+        }</span>
+}
+
+// handleError determines the appropriate HTTP status code and handles the error
+func (s *Server) handleError(w http.ResponseWriter, err error, defaultMessage string) <span class="cov8" title="1">{
+        if err == nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        // Determine error type and status code
+        <span class="cov8" title="1">statusCode := s.getStatusCodeFromError(err)
+        message := defaultMessage
+
+        // For not found errors, use empty message to show just the error
+        if statusCode == http.StatusNotFound </span><span class="cov8" title="1">{
+                message = ""
+        }</span>
+
+        <span class="cov8" title="1">s.handleHTTPError(w, err, message, statusCode)</span>
+}
+
+// getStatusCodeFromError determines the appropriate HTTP status code from an error
+func (s *Server) getStatusCodeFromError(err error) int <span class="cov8" title="1">{
+        if strings.Contains(err.Error(), "not found") </span><span class="cov8" title="1">{
+                return http.StatusNotFound
+        }</span>
+
+        <span class="cov0" title="0">if errorx.IsOfType(err, errorx.InternalError) </span><span class="cov0" title="0">{
+                return http.StatusInternalServerError
+        }</span>
+
+        // Default to internal server error
+        <span class="cov0" title="0">return http.StatusInternalServerError</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package server
+
+import (
+        "os"
+
+        "github.com/charmbracelet/log"
+        "github.com/joomcode/errorx"
+        "gopkg.in/yaml.v3"
+)
+
+const (
+        kubeConfigApiVersion     = "v1"
+        kubeConfigKind           = "Config"
+        kubeConfigCurrentContext = "pp-dev"
+)
+
+// KubeConfig represents a kubeconfig file
+type KubeConfig struct {
+        ApiVersion string `yaml:"apiVersion" json:"apiVersion"`
+        Kind       string `yaml:"kind" json:"kind"`
+        Clusters   []struct {
+                Cluster struct {
+                        CertificateAuthorityData string `yaml:"certificate-authority-data" json:"certificate-authority-data"`
+                        Server                   string `yaml:"server" json:"server"`
+                } `yaml:"cluster" json:"cluster"`
+                Name string `yaml:"name" json:"name"`
+        } `yaml:"clusters" json:"clusters"`
+        Contexts []struct {
+                Context struct {
+                        Cluster string `yaml:"cluster" json:"cluster"`
+                        User    string `yaml:"user" json:"user"`
+                } `yaml:"context" json:"context"`
+                Name string `yaml:"name" json:"name"`
+        } `yaml:"contexts" json:"contexts"`
+        CurrentContext string `yaml:"current-context" json:"current-context"`
+        Users          []struct {
+                User any    `yaml:"user" json:"user"`
+                Name string `yaml:"name" json:"name"`
+        } `yaml:"users" json:"users"`
+}
+
+// NewKubeConfig creates a new KubeConfig with default values
+func NewKubeConfig(filePath string, logger *log.Logger) (*KubeConfig, error) <span class="cov8" title="1">{
+        kubeConfig := &amp;KubeConfig{}
+
+        if filePath != "" </span><span class="cov8" title="1">{
+                data, err := os.ReadFile(filePath)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, errorx.Decorate(err, "can't read kubeconfig file")
+                }</span>
+                <span class="cov8" title="1">err = yaml.Unmarshal(data, &amp;kubeConfig)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, errorx.Decorate(err, "can't parse kubeconfig file")
+                }</span>
+        } else<span class="cov8" title="1"> {
+                logger.Debug("No kubeconfig file provided, using empty kubeconfig")
+        }</span>
+
+        <span class="cov8" title="1">return kubeConfig, nil</span>
+}
+
+// Validate checks if the kubeconfig has required fields
+func (k *KubeConfig) Validate() error <span class="cov8" title="1">{
+        if len(k.Clusters) == 0 </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has no clusters")
+        }</span>
+        <span class="cov8" title="1">if len(k.Contexts) == 0 </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has no contexts")
+        }</span>
+        <span class="cov8" title="1">if len(k.Users) == 0 </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has no users")
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// HasDuplicateNames checks if this config has duplicate names with another config
+func (k *KubeConfig) HasDuplicateNames(other *KubeConfig) error <span class="cov8" title="1">{
+        // Check cluster name duplicates
+        if len(k.Clusters) &gt; 0 &amp;&amp; len(other.Clusters) &gt; 0 &amp;&amp;
+                other.Clusters[0].Name == k.Clusters[0].Name </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has duplicate cluster name")
+        }</span>
+
+        // Check context name duplicates
+        <span class="cov8" title="1">if len(k.Contexts) &gt; 0 &amp;&amp; len(other.Contexts) &gt; 0 &amp;&amp;
+                other.Contexts[0].Name == k.Contexts[0].Name </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has duplicate context name")
+        }</span>
+
+        // Check user name duplicates
+        <span class="cov8" title="1">if len(k.Users) &gt; 0 &amp;&amp; len(other.Users) &gt; 0 &amp;&amp;
+                other.Users[0].Name == k.Users[0].Name </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has duplicate user name")
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// HasMultipleEntries checks if the config has more than one cluster, context, or user
+func (k *KubeConfig) HasMultipleEntries() error <span class="cov8" title="1">{
+        if len(k.Clusters) &gt; 1 </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has more than one cluster")
+        }</span>
+        <span class="cov8" title="1">if len(k.Contexts) &gt; 1 </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has more than one context")
+        }</span>
+        <span class="cov8" title="1">if len(k.Users) &gt; 1 </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig has more than one user")
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// mergeKubeConfigs merges two kubeconfigs into a new one
+func mergeKubeConfigs(config1 *KubeConfig, config2 *KubeConfig) (*KubeConfig, error) <span class="cov8" title="1">{
+        merged := &amp;KubeConfig{
+                ApiVersion: kubeConfigApiVersion,
+                Kind:       kubeConfigKind,
+        }
+
+        // Validate config2 has required fields
+        if err := config2.Validate(); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Check for duplicates
+        <span class="cov8" title="1">if err := config1.HasDuplicateNames(config2); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Check for multiple entries in config2
+        <span class="cov8" title="1">if err := config2.HasMultipleEntries(); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Merge the configs
+        <span class="cov8" title="1">merged.Clusters = append(config1.Clusters, config2.Clusters...)
+        merged.Contexts = append(config1.Contexts, config2.Contexts...)
+        merged.Users = append(config1.Users, config2.Users...)
+
+        // Set current context
+        if config1.CurrentContext == "" </span><span class="cov8" title="1">{
+                merged.CurrentContext = config2.CurrentContext
+        }</span> else<span class="cov8" title="1"> {
+                merged.CurrentContext = kubeConfigCurrentContext // default value
+        }</span>
+
+        <span class="cov8" title="1">return merged, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package server
+
+import (
+        "net/http"
+
+        "github.com/joomcode/errorx"
+)
+
+// setupRoutes configures all HTTP routes for the server
+func (s *Server) setupRoutes() <span class="cov8" title="1">{
+        http.HandleFunc("/json/list", s.HandleListConfigsJson)
+        http.HandleFunc("/yaml/list", s.HandleListConfigsYaml)
+        http.HandleFunc("/json/get", s.HandleGetKubeConfigsJson)
+        http.HandleFunc("/yaml/get", s.HandleGetKubeConfigsYaml)
+        http.HandleFunc("/", s.HandleIndex)
+}</span>
+
+// Start starts the HTTP server
+func (s *Server) Start(port string) error <span class="cov8" title="1">{
+        s.setupRoutes()
+
+        s.Logger.Info("Server starting", "port", port)
+        if err := http.ListenAndServe(":"+port, nil); err != nil </span><span class="cov8" title="1">{
+                return errorx.Decorate(err, "failed to start server")
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package server
 
 import (
         "encoding/json"
@@ -122,21 +367,7 @@ func NewServer(appConfig *Server) (*Server, error) <span class="cov8" title="1">
         <span class="cov8" title="1">return server, nil</span>
 }
 
-// Start starts the http server
-func (s *Server) Start(port string) error <span class="cov8" title="1">{
-        // Setup routes
-        http.HandleFunc("/json/list", s.HandleListConfigsJson)
-        http.HandleFunc("/yaml/list", s.HandleListConfigsYaml)
-        http.HandleFunc("/json/get", s.HandleGetKubeConfigsJson)
-        http.HandleFunc("/yaml/get", s.HandleGetKubeConfigsYaml)
-        http.HandleFunc("/", s.HandleIndex)
-
-        if err := http.ListenAndServe(":"+port, nil); err != nil </span><span class="cov8" title="1">{
-                return errorx.Decorate(err, "failed to start server")
-        }</span>
-
-        <span class="cov0" title="0">return nil</span>
-}
+// Note: Start method moved to router.go for better separation of concerns
 
 func (s *Server) TemplateIndex(w http.ResponseWriter) error <span class="cov8" title="1">{
         // html template with list of available configs
@@ -197,15 +428,7 @@ type Encoder interface {
         Encode(v interface{}) error
 }
 
-// handleHTTPError logs an error and sends an HTTP error response
-func (s *Server) handleHTTPError(w http.ResponseWriter, err error, message string, statusCode int) <span class="cov8" title="1">{
-        s.Logger.Error(message, "error", err)
-        if err != nil </span><span class="cov8" title="1">{
-                http.Error(w, message+": "+err.Error(), statusCode)
-        }</span> else<span class="cov0" title="0"> {
-                http.Error(w, message, statusCode)
-        }</span>
-}
+// Note: handleHTTPError moved to errors.go for better organization
 
 // createYAMLEncoder creates a YAML encoder with consistent formatting
 func createYAMLEncoder(w io.Writer) Encoder <span class="cov8" title="1">{
@@ -324,13 +547,9 @@ func (s *Server) HandleGetKubeConfigs(
         // Load and merge the requested configs
         kubeConfig, err := s.loadAndMergeConfigs(requestedNames)
         if err != nil </span><span class="cov8" title="1">{
-                if strings.Contains(err.Error(), "not found") </span><span class="cov8" title="1">{
-                        s.handleHTTPError(w, err, "", http.StatusNotFound)
-                }</span> else<span class="cov0" title="0"> {
-                        s.handleHTTPError(w, err, "Failed to load and merge configs", http.StatusInternalServerError)
-                }</span>
-                <span class="cov8" title="1">return</span>
-        }
+                s.handleError(w, err, "Failed to load and merge configs")
+                return
+        }</span>
 
         // Return the merged config
         <span class="cov8" title="1">err = encoder(w).Encode(kubeConfig)
@@ -472,121 +691,6 @@ func (s *Server) validateAllConfigsMergeable() error <span class="cov8" title="1
 
         <span class="cov8" title="1">s.Logger.Info("Successfully validated that all configs can be merged together")
         return nil</span>
-}
-</pre>
-		
-		<pre class="file" id="file1" style="display: none">package server
-
-import (
-        "os"
-
-        "github.com/charmbracelet/log"
-        "github.com/joomcode/errorx"
-        "gopkg.in/yaml.v3"
-)
-
-const (
-        kubeConfigApiVersion     = "v1"
-        kubeConfigKind           = "Config"
-        kubeConfigCurrentContext = "pp-dev"
-)
-
-// KubeConfig represents a kubeconfig file
-type KubeConfig struct {
-        ApiVersion string `yaml:"apiVersion"      json:"apiVersion"`
-        Kind       string `yaml:"kind"            json:"kind"`
-        Clusters   []struct {
-                Cluster struct {
-                        CertificateAuthorityData string `yaml:"certificate-authority-data" json:"certificate-authority-data"`
-                        Server                   string `yaml:"server" json:"server"`
-                } `yaml:"cluster" json:"cluster"`
-                Name string `yaml:"name" json:"name"`
-        } `yaml:"clusters"        json:"clusters"`
-        Contexts []struct {
-                Context struct {
-                        Cluster string `yaml:"cluster" json:"cluster"`
-                        User    string `yaml:"user" json:"user"`
-                } `yaml:"context" json:"context"`
-                Name string `yaml:"name" json:"name"`
-        } `yaml:"contexts"        json:"contexts"`
-        CurrentContext string `yaml:"current-context" json:"current-context"`
-        Users          []struct {
-                User any    `yaml:"user" json:"user"`
-                Name string `yaml:"name" json:"name"`
-        } `yaml:"users"           json:"users"`
-}
-
-// NewKubeConfig creates a new KubeConfig with default values
-func NewKubeConfig(filePath string, logger *log.Logger) (*KubeConfig, error) <span class="cov8" title="1">{
-        kubeConfig := &amp;KubeConfig{}
-
-        if filePath != "" </span><span class="cov8" title="1">{
-                data, err := os.ReadFile(filePath)
-                if err != nil </span><span class="cov8" title="1">{
-                        return nil, errorx.Decorate(err, "can't read kubeconfig file")
-                }</span>
-                <span class="cov8" title="1">err = yaml.Unmarshal(data, &amp;kubeConfig)
-                if err != nil </span><span class="cov8" title="1">{
-                        return nil, errorx.Decorate(err, "can't parse kubeconfig file")
-                }</span>
-        } else<span class="cov8" title="1"> {
-                logger.Debug("No kubeconfig file provided, using empty kubeconfig")
-        }</span>
-
-        <span class="cov8" title="1">return kubeConfig, nil</span>
-}
-
-func mergeKubeConfigs(config1 *KubeConfig, config2 *KubeConfig) (*KubeConfig, error) <span class="cov8" title="1">{
-        merged := &amp;KubeConfig{
-                ApiVersion: kubeConfigApiVersion,
-                Kind:       kubeConfigKind,
-        }
-
-        // check nil
-        if len(config2.Clusters) == 0 </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has no clusters")
-        }</span>
-        <span class="cov8" title="1">if len(config2.Contexts) == 0 </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has no contexts")
-        }</span>
-        <span class="cov8" title="1">if len(config2.Users) == 0 </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has no users")
-        }</span>
-
-        // check duplicates
-        <span class="cov8" title="1">if len(config1.Clusters) &gt; 0 &amp;&amp; len(config2.Clusters) &gt; 0 &amp;&amp; config2.Clusters[0].Name == config1.Clusters[0].Name </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has duplicate cluster name")
-        }</span>
-        <span class="cov8" title="1">if len(config1.Contexts) &gt; 0 &amp;&amp; len(config2.Contexts) &gt; 0 &amp;&amp; config2.Contexts[0].Name == config1.Contexts[0].Name </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has duplicate context name")
-        }</span>
-        <span class="cov8" title="1">if len(config1.Users) &gt; 0 &amp;&amp; len(config2.Users) &gt; 0 &amp;&amp; config2.Users[0].Name == config1.Users[0].Name </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has duplicate user name")
-        }</span>
-
-        // check len
-        <span class="cov8" title="1">if len(config2.Clusters) &gt; 1 </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has more than one cluster")
-        }</span>
-        <span class="cov8" title="1">if len(config2.Contexts) &gt; 1 </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has more than one context")
-        }</span>
-        <span class="cov8" title="1">if len(config2.Users) &gt; 1 </span><span class="cov8" title="1">{
-                return nil, errorx.InternalError.New("kubeconfig has more than one user")
-        }</span>
-
-        // append
-        <span class="cov8" title="1">merged.Clusters = append(config1.Clusters, config2.Clusters...)
-        merged.Contexts = append(config1.Contexts, config2.Contexts...)
-        merged.Users = append(config1.Users, config2.Users...)
-
-        if config1.CurrentContext == "" </span><span class="cov8" title="1">{
-                merged.CurrentContext = config2.CurrentContext
-        }</span> else<span class="cov8" title="1"> {
-                merged.CurrentContext = kubeConfigCurrentContext // default value
-        }</span>
-
-        <span class="cov8" title="1">return merged, nil</span>
 }
 </pre>
 		
