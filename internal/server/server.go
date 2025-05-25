@@ -15,13 +15,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	templateIndex = "web/templates/index.html"
-)
-
 // Server represents the API server
 type Server struct {
 	ConfigsDir string
+	WebDir     string
 	Logger     *log.Logger
 }
 
@@ -29,6 +26,7 @@ type Server struct {
 func NewServer(appConfig *Server) (*Server, error) {
 	server := &Server{
 		ConfigsDir: appConfig.ConfigsDir,
+		WebDir:     appConfig.WebDir,
 		Logger:     appConfig.Logger,
 	}
 
@@ -58,7 +56,8 @@ func (s *Server) Start(port string) error {
 
 func (s *Server) TemplateIndex(w http.ResponseWriter) error {
 	// html template with list of available configs
-	tmpl, err := template.ParseFiles(templateIndex)
+	templatePath := filepath.Join(s.WebDir, "templates", "index.html")
+	tmpl, err := template.ParseFiles(templatePath)
 	if err != nil {
 		return errorx.Decorate(err, "failed to parse index template file")
 	}
@@ -205,7 +204,7 @@ func (s *Server) getRequestedConfigNames(r *http.Request, allConfigNames []strin
 // validateConfigExists checks if a config name exists in the available configs
 func (s *Server) validateConfigExists(name string, configNames []string) error {
 	if !slices.Contains(configNames, name) {
-		return errorx.InternalError.New("kubeconfig not found: " + name)
+		return errorx.InternalError.New("kubeconfig not found: %s", name)
 	}
 	return nil
 }
@@ -231,12 +230,12 @@ func (s *Server) loadAndMergeConfigs(names []string, configNames []string) (inte
 		s.Logger.Debug("Reading kubeconfig", "path", filePath)
 		kubeConfigNew, err := NewKubeConfig(filePath, s.Logger)
 		if err != nil {
-			return nil, errorx.Decorate(err, "failed to read kubeconfig: "+filePath)
+			return nil, errorx.Decorate(err, "failed to read kubeconfig: %s", filePath)
 		}
 
 		kubeConfig, err = mergeKubeConfigs(kubeConfig, kubeConfigNew)
 		if err != nil {
-			return nil, errorx.Decorate(err, "failed to merge kubeconfig: "+name)
+			return nil, errorx.Decorate(err, "failed to merge kubeconfig: %s", filePath)
 		}
 	}
 

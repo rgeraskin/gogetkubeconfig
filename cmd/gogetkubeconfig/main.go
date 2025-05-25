@@ -14,6 +14,7 @@ import (
 const (
 	defaultPort               = "8080"
 	defaultConfigsDir         = "./configs"
+	defaultWebDir             = "./web"
 	defaultDefaultsConfigName = "defaults.yaml"
 )
 
@@ -36,9 +37,9 @@ func newAppConfig(logger *log.Logger) (*AppConfig, error) {
 		config.ConfigsDir = defaultConfigsDir
 	}
 
-	defaultsConfigFileName := os.Getenv("DEFAULTS_CONFIG")
-	if defaultsConfigFileName == "" {
-		defaultsConfigFileName = defaultDefaultsConfigName
+	config.WebDir = os.Getenv("WEB_DIR")
+	if config.WebDir == "" {
+		config.WebDir = defaultWebDir
 	}
 
 	config.Port = os.Getenv("PORT")

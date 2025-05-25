@@ -77,13 +77,13 @@ func mergeKubeConfigs(config1 *KubeConfig, config2 *KubeConfig) (*KubeConfig, er
 	}
 
 	// check duplicates
-	if config1.Clusters != nil && config2.Clusters[0].Name == config1.Clusters[0].Name {
+	if len(config1.Clusters) > 0 && len(config2.Clusters) > 0 && config2.Clusters[0].Name == config1.Clusters[0].Name {
 		return nil, errorx.InternalError.New("kubeconfig has duplicate cluster name")
 	}
-	if config1.Contexts != nil && config2.Contexts[0].Name == config1.Contexts[0].Name {
+	if len(config1.Contexts) > 0 && len(config2.Contexts) > 0 && config2.Contexts[0].Name == config1.Contexts[0].Name {
 		return nil, errorx.InternalError.New("kubeconfig has duplicate context name")
 	}
-	if config1.Users != nil && config2.Users[0].Name == config1.Users[0].Name {
+	if len(config1.Users) > 0 && len(config2.Users) > 0 && config2.Users[0].Name == config1.Users[0].Name {
 		return nil, errorx.InternalError.New("kubeconfig has duplicate user name")
 	}
 
