@@ -1,4 +1,4 @@
-module github.com/rgeraskin/gogetkubeconfig
+module github.com/rgeraskin/kubedepot
 
 go 1.24
 

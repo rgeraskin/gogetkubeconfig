@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/rgeraskin/gogetkubeconfig/internal/config"
-	"github.com/rgeraskin/gogetkubeconfig/internal/server"
+	"github.com/rgeraskin/kubedepot/internal/config"
+	"github.com/rgeraskin/kubedepot/internal/server"
 )
 
 func main() {
@@ -13,7 +13,7 @@ func main() {
 	}
 
 	logger := cfg.Logger
-	logger.Info("Starting gogetkubeconfig")
+	logger.Info("Starting kubedepot")
 
 	// Log effective configuration
 	logger.Info("Configuration loaded",

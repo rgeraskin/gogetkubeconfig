@@ -1,15 +1,15 @@
 # Testing Guide
 
-This document describes the testing strategy and setup for the gogetkubeconfig project.
+This document describes the testing strategy and setup for the kubedepot project.
 
 ## Test Structure
 
 The project uses Go's standard testing framework with the following test files:
 
-1. **`cmd/gogetkubeconfig/main_test.go`** - Tests for main application logic
+1. **`cmd/kubedepot/main_test.go`** - Tests for main application logic
 2. **`internal/server/server_test.go`** - HTTP server endpoint tests
 3. **`internal/server/util_test.go`** - Utility function tests
-4. **`cmd/gogetkubeconfig/integration_test.go`** - End-to-end integration tests
+4. **`cmd/kubedepot/integration_test.go`** - End-to-end integration tests
 
 ## Test Data Management
 
@@ -139,14 +139,14 @@ chmod +x test.sh
 ### Manual Test Execution
 ```bash
 # Run specific test packages
-go test ./cmd/gogetkubeconfig/ -v
+go test ./cmd/kubedepot/ -v
 go test ./internal/server/ -v
 
 # Run with coverage
 go test ./internal/server/ -cover -v
 
 # Run integration tests only
-go test ./cmd/gogetkubeconfig/ -run TestIntegration -v
+go test ./cmd/kubedepot/ -run TestIntegration -v
 
 # Run tests in short mode (skips integration tests)
 go test -short ./...

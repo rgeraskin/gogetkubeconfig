@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rgeraskin/gogetkubeconfig/internal/config"
-	"github.com/rgeraskin/gogetkubeconfig/internal/testutil"
+	"github.com/rgeraskin/kubedepot/internal/config"
+	"github.com/rgeraskin/kubedepot/internal/testutil"
 )
 
 // TestMainPackageIntegration tests that the main package can successfully

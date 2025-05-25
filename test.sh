@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test runner script for gogetkubeconfig
+# Test runner script for kubedepot
 
 set -e
 
@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "🧪 Running tests for gogetkubeconfig..."
+echo "🧪 Running tests for kubedepot..."
 echo
 
 # Colors for output
@@ -98,7 +98,7 @@ print_status $YELLOW "🚀 Starting test suite..."
 echo
 
 # Run unit tests for main package
-run_with_coverage "./cmd/gogetkubeconfig" "Main Application" "main.cover.out"
+run_with_coverage "./cmd/kubedepot" "Main Application" "main.cover.out"
 
 # Run unit tests for config package
 run_with_coverage "./internal/config" "Configuration Package" "config.cover.out"
@@ -128,7 +128,7 @@ fi
 
 if [ "$RUN_INTEGRATION" = true ]; then
     print_status $BLUE "🔗 Running integration tests..."
-    if go test -v ./cmd/gogetkubeconfig -run TestIntegration; then
+    if go test -v ./cmd/kubedepot -run TestIntegration; then
         print_status $GREEN "✅ Integration tests passed"
     else
         print_status $RED "❌ Integration tests failed"

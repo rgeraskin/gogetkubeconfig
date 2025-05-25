@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/log"
-	"github.com/rgeraskin/gogetkubeconfig/internal/config"
-	"github.com/rgeraskin/gogetkubeconfig/internal/server"
-	"github.com/rgeraskin/gogetkubeconfig/internal/testutil"
+	"github.com/rgeraskin/kubedepot/internal/config"
+	"github.com/rgeraskin/kubedepot/internal/server"
+	"github.com/rgeraskin/kubedepot/internal/testutil"
 	"gopkg.in/yaml.v3"
 )
 

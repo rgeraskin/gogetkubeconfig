@@ -1,4 +1,4 @@
-# KubeConfig Provider
+# KubeDepot
 
 A web service that provides kubeconfig YAML files on request.
 
@@ -12,7 +12,7 @@ A web service that provides kubeconfig YAML files on request.
 
 1. Clone the repository
 2. Run `go mod tidy` to fetch all dependencies
-3. Build the application: `go build -o ./gogetkubeconfig ./cmd/gogetkubeconfig/`
+3. Build the application: `go build -o ./kubedepot ./cmd/kubedepot/`
 
 ## Configuration
 
@@ -28,10 +28,10 @@ The application can be configured using environment variables:
 
 ```bash
 # Start with default settings
-./gogetkubeconfig
+./kubedepot
 
 # Or with custom settings
-CONFIGS_DIR=/path/to/configs PORT=9090 ./gogetkubeconfig
+CONFIGS_DIR=/path/to/configs PORT=9090 ./kubedepot
 ```
 
 ### API Endpoints

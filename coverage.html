@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>gogetkubeconfig: Go Coverage Report</title>
+		<title>kubedepot: Go Coverage Report</title>
 		<style>
 			body {
 				background: black;
@@ -55,17 +55,17 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/rgeraskin/gogetkubeconfig/cmd/gogetkubeconfig/main.go (0.0%)</option>
+				<option value="file0">github.com/rgeraskin/kubedepot/cmd/kubedepot/main.go (0.0%)</option>
 				
-				<option value="file1">github.com/rgeraskin/gogetkubeconfig/internal/config/config.go (100.0%)</option>
+				<option value="file1">github.com/rgeraskin/kubedepot/internal/config/config.go (100.0%)</option>
 				
-				<option value="file2">github.com/rgeraskin/gogetkubeconfig/internal/server/errors.go (68.8%)</option>
+				<option value="file2">github.com/rgeraskin/kubedepot/internal/server/errors.go (68.8%)</option>
 				
-				<option value="file3">github.com/rgeraskin/gogetkubeconfig/internal/server/kubeconfig.go (100.0%)</option>
+				<option value="file3">github.com/rgeraskin/kubedepot/internal/server/kubeconfig.go (100.0%)</option>
 				
-				<option value="file4">github.com/rgeraskin/gogetkubeconfig/internal/server/router.go (90.0%)</option>
+				<option value="file4">github.com/rgeraskin/kubedepot/internal/server/router.go (90.0%)</option>
 				
-				<option value="file5">github.com/rgeraskin/gogetkubeconfig/internal/server/server.go (83.4%)</option>
+				<option value="file5">github.com/rgeraskin/kubedepot/internal/server/server.go (83.4%)</option>
 				
 				</select>
 			</div>
@@ -82,8 +82,8 @@
 		<pre class="file" id="file0" style="display: none">package main
 
 import (
-        "github.com/rgeraskin/gogetkubeconfig/internal/config"
-        "github.com/rgeraskin/gogetkubeconfig/internal/server"
+        "github.com/rgeraskin/kubedepot/internal/config"
+        "github.com/rgeraskin/kubedepot/internal/server"
 )
 
 func main() <span class="cov0" title="0">{
@@ -94,7 +94,7 @@ func main() <span class="cov0" title="0">{
         }
 
         <span class="cov0" title="0">logger := cfg.Logger
-        logger.Info("Starting gogetkubeconfig")
+        logger.Info("Starting kubedepot")
 
         // Log effective configuration
         logger.Info("Configuration loaded",

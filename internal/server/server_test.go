@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/log"
-	"github.com/rgeraskin/gogetkubeconfig/internal/testutil"
+	"github.com/rgeraskin/kubedepot/internal/testutil"
 	"gopkg.in/yaml.v3"
 )
 
