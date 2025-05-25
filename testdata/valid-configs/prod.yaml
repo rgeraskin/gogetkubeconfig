@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      certificate-authority-data: cHJvZC1jZXJ0
+      server: https://prod.example.com
+    name: prod-cluster
+contexts:
+  - context:
+      cluster: prod-cluster
+      user: prod-user
+    name: prod-context
+current-context: prod-context
+users:
+  - name: prod-user
+    user:
+      token: prod-token

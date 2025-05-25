@@ -1,0 +1,509 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>server: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/rgeraskin/gogetkubeconfig/internal/server/server.go (98.2%)</option>
+				
+				<option value="file1">github.com/rgeraskin/gogetkubeconfig/internal/server/util.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package server
+
+import (
+        "encoding/json"
+        "html/template"
+        "io"
+        "net/http"
+        "os"
+        "path/filepath"
+        "slices"
+        "strings"
+
+        "github.com/charmbracelet/log"
+        "github.com/joomcode/errorx"
+        "gopkg.in/yaml.v3"
+)
+
+// Server represents the API server
+type Server struct {
+        ConfigsDir string
+        WebDir     string
+        Logger     *log.Logger
+}
+
+// NewServer creates a new server instance
+func NewServer(appConfig *Server) (*Server, error) <span class="cov8" title="1">{
+        server := &amp;Server{
+                ConfigsDir: appConfig.ConfigsDir,
+                WebDir:     appConfig.WebDir,
+                Logger:     appConfig.Logger,
+        }
+
+        // Check that index can be generated
+        err := server.TemplateIndex(nil)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, errorx.Decorate(err, "can't generate index page")
+        }</span>
+        <span class="cov8" title="1">return server, nil</span>
+}
+
+// Start starts the http server
+func (s *Server) Start(port string) error <span class="cov8" title="1">{
+        // Setup routes
+        http.HandleFunc("/json/list", s.HandleListConfigsJson)
+        http.HandleFunc("/yaml/list", s.HandleListConfigsYaml)
+        http.HandleFunc("/json/get", s.HandleGetKubeConfigsJson)
+        http.HandleFunc("/yaml/get", s.HandleGetKubeConfigsYaml)
+        http.HandleFunc("/", s.HandleIndex)
+
+        if err := http.ListenAndServe(":"+port, nil); err != nil </span><span class="cov8" title="1">{
+                return errorx.Decorate(err, "failed to start server")
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (s *Server) TemplateIndex(w http.ResponseWriter) error <span class="cov8" title="1">{
+        // html template with list of available configs
+        templatePath := filepath.Join(s.WebDir, "templates", "index.html")
+        tmpl, err := template.ParseFiles(templatePath)
+        if err != nil </span><span class="cov8" title="1">{
+                return errorx.Decorate(err, "failed to parse index template file")
+        }</span>
+        <span class="cov8" title="1">names, err := s.ListConfigs()
+        if err != nil </span><span class="cov8" title="1">{
+                return errorx.Decorate(err, "failed to list configs in dir")
+        }</span>
+        <span class="cov8" title="1">vals := map[string][]string{
+                "names": names,
+        }
+
+        // Only execute the template if the writer is not nil
+        if w != nil </span><span class="cov8" title="1">{
+                err = tmpl.Execute(w, vals)
+                if err != nil </span><span class="cov8" title="1">{
+                        return errorx.Decorate(err, "failed to execute index template")
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Index handles the root route
+func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        err := s.TemplateIndex(w)
+        if err != nil </span><span class="cov8" title="1">{
+                s.Logger.Error(err)
+                http.Error(w, "Failed to template index", http.StatusInternalServerError)
+        }</span>
+}
+
+// ListConfigsYaml lists all available kubeconfigs in YAML format
+func (s *Server) HandleListConfigsYaml(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        s.HandleListConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
+                enc := yaml.NewEncoder(w)
+                enc.SetIndent(2)
+                return enc
+        }</span>)
+}
+
+// ListConfigsJson lists all available kubeconfigs in JSON format
+func (s *Server) HandleListConfigsJson(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        s.HandleListConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
+                return json.NewEncoder(w)
+        }</span>)
+}
+
+// GetKubeConfigsYaml returns a merged kubeconfig in YAML format
+func (s *Server) HandleGetKubeConfigsYaml(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        s.HandleGetKubeConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
+                enc := yaml.NewEncoder(w)
+                enc.SetIndent(2)
+                return enc
+        }</span>)
+}
+
+// GetKubeConfigsJson returns a merged kubeconfig in JSON format
+func (s *Server) HandleGetKubeConfigsJson(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        s.HandleGetKubeConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
+                return json.NewEncoder(w)
+        }</span>)
+}
+
+// Define an Encoder interface
+type Encoder interface {
+        Encode(v interface{}) error
+}
+
+func (s *Server) ListConfigs() ([]string, error) <span class="cov8" title="1">{
+        s.Logger.Info("Listing configs")
+
+        s.Logger.Debug("Checking if configs in dir is readable", "path", s.ConfigsDir)
+        files, err := os.ReadDir(s.ConfigsDir)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, errorx.Decorate(err, "failed to list configs in dir")
+        }</span>
+
+        <span class="cov8" title="1">names := []string{}
+        for _, file := range files </span><span class="cov8" title="1">{
+                names = append(names, strings.TrimSuffix(file.Name(), filepath.Ext(file.Name())))
+        }</span>
+
+        <span class="cov8" title="1">return names, nil</span>
+}
+
+// ListConfigs returns all available kubeconfigs
+func (s *Server) HandleListConfigs(
+        w http.ResponseWriter,
+        r *http.Request,
+        encoder func(io.Writer) Encoder,
+) <span class="cov8" title="1">{
+        s.Logger.Info("HandleListConfigs")
+        names, err := s.ListConfigs()
+        if err != nil </span><span class="cov8" title="1">{
+                s.Logger.Error("Failed to list configs in dir", "error", err)
+                http.Error(w, "Failed to list configs in dir", http.StatusInternalServerError)
+                return
+        }</span>
+
+        // w.Header().Set("Content-Type", "application/json")
+        <span class="cov8" title="1">err = encoder(w).Encode(names)
+        if err != nil </span><span class="cov8" title="1">{
+                s.Logger.Error("Failed to encode configs list", "error", err)
+                http.Error(
+                        w,
+                        "Failed to encode configs list: "+err.Error(),
+                        http.StatusInternalServerError,
+                )
+                return
+        }</span>
+
+        <span class="cov8" title="1">s.Logger.Debug("Listed configs", "names", names)</span>
+}
+
+// getConfigNames returns all available config names from the configs directory
+func (s *Server) getConfigNames() ([]string, error) <span class="cov8" title="1">{
+        s.Logger.Debug("Checking if configs in dir is readable", "path", s.ConfigsDir)
+        fileNames, err := os.ReadDir(s.ConfigsDir)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, errorx.Decorate(err, "failed to read configs directory")
+        }</span>
+
+        <span class="cov8" title="1">configNames := []string{}
+        for _, file := range fileNames </span><span class="cov8" title="1">{
+                configNames = append(
+                        configNames,
+                        strings.TrimSuffix(file.Name(), filepath.Ext(file.Name())),
+                )
+        }</span>
+        <span class="cov8" title="1">return configNames, nil</span>
+}
+
+// getRequestedConfigNames extracts requested config names from query parameters
+func (s *Server) getRequestedConfigNames(r *http.Request, allConfigNames []string) []string <span class="cov8" title="1">{
+        names := r.URL.Query()["name"]
+        if len(names) == 0 </span><span class="cov8" title="1">{
+                s.Logger.Info("No config names provided, getting all configs")
+                return allConfigNames
+        }</span>
+        <span class="cov8" title="1">s.Logger.Info("Getting configs", "names", names)
+        return names</span>
+}
+
+// validateConfigExists checks if a config name exists in the available configs
+func (s *Server) validateConfigExists(name string, configNames []string) error <span class="cov8" title="1">{
+        if !slices.Contains(configNames, name) </span><span class="cov8" title="1">{
+                return errorx.InternalError.New("kubeconfig not found: %s", name)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// loadAndMergeConfigs loads and merges multiple kubeconfigs
+func (s *Server) loadAndMergeConfigs(names []string, configNames []string) (interface{}, error) <span class="cov8" title="1">{
+        // Create empty kubeconfig
+        kubeConfig, err := NewKubeConfig("", s.Logger)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, errorx.Decorate(err, "failed to create empty kubeconfig")
+        }</span>
+
+        <span class="cov8" title="1">s.Logger.Debug("Empty kubeconfig", "kubeconfig", kubeConfig)
+
+        // For each requested config
+        for _, name := range names </span><span class="cov8" title="1">{
+                // Validate config exists
+                if err := s.validateConfigExists(name, configNames); err != nil </span><span class="cov8" title="1">{
+                        return nil, err
+                }</span>
+
+                <span class="cov8" title="1">filePath := filepath.Join(s.ConfigsDir, name+".yaml")
+                s.Logger.Debug("Reading kubeconfig", "path", filePath)
+                kubeConfigNew, err := NewKubeConfig(filePath, s.Logger)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, errorx.Decorate(err, "failed to read kubeconfig: %s", filePath)
+                }</span>
+
+                <span class="cov8" title="1">kubeConfig, err = mergeKubeConfigs(kubeConfig, kubeConfigNew)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, errorx.Decorate(err, "failed to merge kubeconfig: %s", filePath)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return kubeConfig, nil</span>
+}
+
+// GetKubeConfigs returns multiple kubeconfigs
+func (s *Server) HandleGetKubeConfigs(
+        w http.ResponseWriter,
+        r *http.Request,
+        encoder func(io.Writer) Encoder,
+) <span class="cov8" title="1">{
+        // Get all available config names
+        configNames, err := s.getConfigNames()
+        if err != nil </span><span class="cov8" title="1">{
+                s.Logger.Error("Failed to get config names", "error", err)
+                http.Error(
+                        w,
+                        "Failed to read configs directory: "+err.Error(),
+                        http.StatusInternalServerError,
+                )
+                return
+        }</span>
+
+        // Get requested config names from query parameters
+        <span class="cov8" title="1">requestedNames := s.getRequestedConfigNames(r, configNames)
+
+        // Load and merge the requested configs
+        kubeConfig, err := s.loadAndMergeConfigs(requestedNames, configNames)
+        if err != nil </span><span class="cov8" title="1">{
+                s.Logger.Error("Failed to load and merge configs", "error", err)
+                if strings.Contains(err.Error(), "not found") </span><span class="cov8" title="1">{
+                        http.Error(w, err.Error(), http.StatusNotFound)
+                }</span> else<span class="cov8" title="1"> {
+                        http.Error(w, err.Error(), http.StatusInternalServerError)
+                }</span>
+                <span class="cov8" title="1">return</span>
+        }
+
+        // Return the merged config
+        <span class="cov8" title="1">err = encoder(w).Encode(kubeConfig)
+        if err != nil </span><span class="cov8" title="1">{
+                s.Logger.Error("Failed to serialize kubeconfig", "error", err)
+                http.Error(
+                        w,
+                        "Failed to serialize kubeconfig: "+err.Error(),
+                        http.StatusInternalServerError,
+                )
+                return
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package server
+
+import (
+        "os"
+
+        "github.com/charmbracelet/log"
+        "github.com/joomcode/errorx"
+        "gopkg.in/yaml.v3"
+)
+
+const (
+        kubeConfigApiVersion     = "v1"
+        kubeConfigKind           = "Config"
+        kubeConfigCurrentContext = "pp-dev"
+)
+
+// KubeConfig represents a kubeconfig file
+type KubeConfig struct {
+        ApiVersion string `yaml:"apiVersion"      json:"apiVersion"`
+        Kind       string `yaml:"kind"            json:"kind"`
+        Clusters   []struct {
+                Cluster struct {
+                        CertificateAuthorityData string `yaml:"certificate-authority-data" json:"certificate-authority-data"`
+                        Server                   string `yaml:"server" json:"server"`
+                } `yaml:"cluster" json:"cluster"`
+                Name string `yaml:"name" json:"name"`
+        } `yaml:"clusters"        json:"clusters"`
+        Contexts []struct {
+                Context struct {
+                        Cluster string `yaml:"cluster" json:"cluster"`
+                        User    string `yaml:"user" json:"user"`
+                } `yaml:"context" json:"context"`
+                Name string `yaml:"name" json:"name"`
+        } `yaml:"contexts"        json:"contexts"`
+        CurrentContext string `yaml:"current-context" json:"current-context"`
+        Users          []struct {
+                User any    `yaml:"user" json:"user"`
+                Name string `yaml:"name" json:"name"`
+        } `yaml:"users"           json:"users"`
+}
+
+// NewKubeConfig creates a new KubeConfig with default values
+func NewKubeConfig(filePath string, logger *log.Logger) (*KubeConfig, error) <span class="cov8" title="1">{
+        kubeConfig := &amp;KubeConfig{}
+
+        if filePath != "" </span><span class="cov8" title="1">{
+                data, err := os.ReadFile(filePath)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, errorx.Decorate(err, "can't read kubeconfig file")
+                }</span>
+                <span class="cov8" title="1">err = yaml.Unmarshal(data, &amp;kubeConfig)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, errorx.Decorate(err, "can't parse kubeconfig file")
+                }</span>
+        } else<span class="cov8" title="1"> {
+                logger.Debug("No kubeconfig file provided, using empty kubeconfig")
+        }</span>
+
+        <span class="cov8" title="1">return kubeConfig, nil</span>
+}
+
+func mergeKubeConfigs(config1 *KubeConfig, config2 *KubeConfig) (*KubeConfig, error) <span class="cov8" title="1">{
+        merged := &amp;KubeConfig{
+                ApiVersion: kubeConfigApiVersion,
+                Kind:       kubeConfigKind,
+        }
+
+        // check nil
+        if len(config2.Clusters) == 0 </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has no clusters")
+        }</span>
+        <span class="cov8" title="1">if len(config2.Contexts) == 0 </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has no contexts")
+        }</span>
+        <span class="cov8" title="1">if len(config2.Users) == 0 </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has no users")
+        }</span>
+
+        // check duplicates
+        <span class="cov8" title="1">if len(config1.Clusters) &gt; 0 &amp;&amp; len(config2.Clusters) &gt; 0 &amp;&amp; config2.Clusters[0].Name == config1.Clusters[0].Name </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has duplicate cluster name")
+        }</span>
+        <span class="cov8" title="1">if len(config1.Contexts) &gt; 0 &amp;&amp; len(config2.Contexts) &gt; 0 &amp;&amp; config2.Contexts[0].Name == config1.Contexts[0].Name </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has duplicate context name")
+        }</span>
+        <span class="cov8" title="1">if len(config1.Users) &gt; 0 &amp;&amp; len(config2.Users) &gt; 0 &amp;&amp; config2.Users[0].Name == config1.Users[0].Name </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has duplicate user name")
+        }</span>
+
+        // check len
+        <span class="cov8" title="1">if len(config2.Clusters) &gt; 1 </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has more than one cluster")
+        }</span>
+        <span class="cov8" title="1">if len(config2.Contexts) &gt; 1 </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has more than one context")
+        }</span>
+        <span class="cov8" title="1">if len(config2.Users) &gt; 1 </span><span class="cov8" title="1">{
+                return nil, errorx.InternalError.New("kubeconfig has more than one user")
+        }</span>
+
+        // append
+        <span class="cov8" title="1">merged.Clusters = append(config1.Clusters, config2.Clusters...)
+        merged.Contexts = append(config1.Contexts, config2.Contexts...)
+        merged.Users = append(config1.Users, config2.Users...)
+
+        if config1.CurrentContext == "" </span><span class="cov8" title="1">{
+                merged.CurrentContext = config2.CurrentContext
+        }</span> else<span class="cov8" title="1"> {
+                merged.CurrentContext = kubeConfigCurrentContext // default value
+        }</span>
+
+        <span class="cov8" title="1">return merged, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

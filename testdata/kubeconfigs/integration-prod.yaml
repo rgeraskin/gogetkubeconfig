@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      certificate-authority-data: aW50ZWdyYXRpb24tcHJvZA==
+      server: https://integration-prod.example.com
+    name: integration-prod-cluster
+contexts:
+  - context:
+      cluster: integration-prod-cluster
+      user: integration-prod-user
+    name: integration-prod-context
+current-context: integration-prod-context
+users:
+  - name: integration-prod-user
+    user:
+      token: integration-prod-token

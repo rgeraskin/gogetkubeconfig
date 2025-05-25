@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      certificate-authority-data: aW50ZWdyYXRpb24tZGV2
+      server: https://integration-dev.example.com
+    name: integration-dev-cluster
+contexts:
+  - context:
+      cluster: integration-dev-cluster
+      user: integration-dev-user
+    name: integration-dev-context
+current-context: integration-dev-context
+users:
+  - name: integration-dev-user
+    user:
+      token: integration-dev-token

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      certificate-authority-data: ZGV2LWNlcnQ=
+      server: https://dev.example.com
+    name: dev-cluster
+contexts:
+  - context:
+      cluster: dev-cluster
+      user: dev-user
+    name: dev-context
+current-context: dev-context
+users:
+  - name: dev-user
+    user:
+      token: dev-token

@@ -1,0 +1,234 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>gogetkubeconfig: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/rgeraskin/gogetkubeconfig/cmd/gogetkubeconfig/main.go (69.2%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "fmt"
+        "os"
+        "path/filepath"
+
+        "github.com/charmbracelet/log"
+        "github.com/joomcode/errorx"
+        "github.com/rgeraskin/gogetkubeconfig/internal/server"
+)
+
+// default values
+const (
+        defaultPort               = "8080"
+        defaultConfigsDir         = "./configs"
+        defaultWebDir             = "./web"
+        defaultDefaultsConfigName = "defaults.yaml"
+)
+
+// AppConfig represents the application configuration
+type AppConfig struct {
+        server.Server
+        Port string
+}
+
+// newConfig creates a new app Config
+func newAppConfig(logger *log.Logger) (*AppConfig, error) <span class="cov8" title="1">{
+        config := &amp;AppConfig{
+                Server: server.Server{
+                        Logger: logger,
+                },
+        }
+
+        config.ConfigsDir = os.Getenv("CONFIGS_DIR")
+        if config.ConfigsDir == "" </span><span class="cov0" title="0">{
+                config.ConfigsDir = defaultConfigsDir
+        }</span>
+
+        <span class="cov8" title="1">config.WebDir = os.Getenv("WEB_DIR")
+        if config.WebDir == "" </span><span class="cov8" title="1">{
+                config.WebDir = defaultWebDir
+        }</span>
+
+        <span class="cov8" title="1">config.Port = os.Getenv("PORT")
+        if config.Port == "" </span><span class="cov8" title="1">{
+                config.Port = defaultPort
+        }</span>
+
+        // validate config
+        <span class="cov8" title="1">if err := validateKubeConfigs(config); err != nil </span><span class="cov8" title="1">{
+                return nil, errorx.Decorate(err, "invalid config")
+        }</span>
+
+        <span class="cov8" title="1">return config, nil</span>
+}
+
+func validateKubeConfigs(c *AppConfig) error <span class="cov8" title="1">{
+        info, err := os.Stat(c.ConfigsDir)
+
+        c.Logger.Debug("Checking if config directory exists", "path", c.ConfigsDir)
+        if err != nil &amp;&amp; os.IsNotExist(err) </span><span class="cov8" title="1">{
+                return fmt.Errorf("config directory does not exist: %s", c.ConfigsDir)
+        }</span>
+
+        // unexpected error
+        <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
+                return errorx.Decorate(err, "unexpected error")
+        }</span>
+
+        <span class="cov8" title="1">c.Logger.Debug("Checking if config directory is a directory", "path", c.ConfigsDir)
+        if !info.IsDir() </span><span class="cov8" title="1">{
+                return fmt.Errorf("config directory is not a directory: %s", c.ConfigsDir)
+        }</span>
+
+        <span class="cov8" title="1">c.Logger.Debug("Checking if configs in dir is readable", "path", c.ConfigsDir)
+        files, err := os.ReadDir(c.ConfigsDir)
+        if err != nil </span><span class="cov0" title="0">{
+                return errorx.Decorate(err, "can't read configs directory")
+        }</span>
+
+        // Check if all files are valid kubeconfigs
+        <span class="cov8" title="1">for _, file := range files </span><span class="cov8" title="1">{
+                filePath := filepath.Join(c.ConfigsDir, file.Name())
+                c.Logger.Debug("Checking if config file is valid kubeconfig", "path", filePath)
+
+                _, err := server.NewKubeConfig(filePath, c.Logger)
+                if err != nil </span><span class="cov8" title="1">{
+                        return errorx.Decorate(err, "kubeconfig file is invalid: path=%s", filePath)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func NewLogger() *log.Logger <span class="cov8" title="1">{
+        logger := log.New(os.Stderr)
+        logLevel := os.Getenv("DEBUG")
+        if logLevel != "" </span><span class="cov8" title="1">{
+                logger.SetLevel(log.DebugLevel)
+        }</span>
+        <span class="cov8" title="1">logger.SetReportTimestamp(true)
+        return logger</span>
+}
+
+func main() <span class="cov0" title="0">{
+        logger := NewLogger()
+
+        // Configuration
+        logger.Info("Creating config")
+        appConfig, err := newAppConfig(logger)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("Failed to configure application: %+v", err)
+        }</span>
+
+        // Effective config
+        <span class="cov0" title="0">logger.Info("Effective application config", "config", appConfig)
+
+        // Create server
+        logger.Info("Creating server")
+        server, err := server.NewServer(&amp;appConfig.Server)
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("Failed to initialize server: %+v", err)
+        }</span>
+
+        // Start server
+        <span class="cov0" title="0">logger.Info("Starting server", "port", appConfig.Port)
+        if err := server.Start(appConfig.Port); err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("Server failed: %+v", err)
+        }</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

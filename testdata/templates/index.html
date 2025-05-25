@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Kubeconfig Manager</title>
+</head>
+
+<body>
+    <h1>Available Configs</h1>
+    <ul>
+        {{range .names}}
+        <li>{{.}}</li>
+        {{end}}
+    </ul>
+</body>
+
+</html>
