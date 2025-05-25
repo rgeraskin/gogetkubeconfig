@@ -56,7 +56,7 @@ func (s *Server) Start(port string) error {
 
 func (s *Server) TemplateIndex(w http.ResponseWriter) error {
 	// html template with list of available configs
-	templatePath := filepath.Join(s.WebDir, "templates", "index.html")
+	templatePath := filepath.Join(s.WebDir, "index.html")
 	tmpl, err := template.ParseFiles(templatePath)
 	if err != nil {
 		return errorx.Decorate(err, "failed to parse index template file")

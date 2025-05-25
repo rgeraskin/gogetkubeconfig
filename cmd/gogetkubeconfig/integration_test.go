@@ -25,12 +25,12 @@ func TestIntegration_ServerEndpoints(t *testing.T) {
 	// Setup test environment using the valid configs directory (no file copying!)
 	configsDir := testutil.GetValidKubeConfigsDir(t)
 
-	// Create web templates directory for template testing
+	// Create web directory for template testing
 	tempDir := t.TempDir()
-	webDir := filepath.Join(tempDir, "web", "templates")
+	webDir := filepath.Join(tempDir, "web")
 	err := os.MkdirAll(webDir, 0755)
 	if err != nil {
-		t.Fatalf("Failed to create web templates directory: %v", err)
+		t.Fatalf("Failed to create web directory: %v", err)
 	}
 
 	// Copy index template from testdata for template testing

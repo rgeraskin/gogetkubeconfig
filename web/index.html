@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Configuration Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .info-banner {
+            background: #3498db;
+            color: white;
+            padding: 25px 30px;
+            margin: 30px 30px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            text-align: center;
+        }
+
+        .info-icon {
+            font-size: 1.2rem;
+            margin-top: 2px;
+        }
+
+        .info-text {
+            flex: 1;
+            line-height: 1.5;
+        }
+
+        .path-highlight {
+            background: #667eea;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 0 30px 30px 30px;
+            margin-top: 30px;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: "⚙️";
+            font-size: 1.2rem;
+        }
+
+        .config-list {
+            list-style: none;
+        }
+
+        .config-item {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .config-item:hover {
+            border-color: #667eea;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .config-item.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .config-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .config-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 12px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .config-name {
+            font-weight: 500;
+            color: #2c3e50;
+            flex: 1;
+        }
+
+        .select-all {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-bottom: 20px;
+            transition: background 0.2s ease;
+            width: 100%;
+        }
+
+        .select-all:hover {
+            background: #5a6fd8;
+        }
+
+        .output-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+        }
+
+        .output-section .section-title::before {
+            content: "📄";
+        }
+
+        .textarea-container {
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: background 0.2s ease;
+            z-index: 10;
+            opacity: 0.8;
+        }
+
+        .copy-btn:hover {
+            background: #5a6268;
+            opacity: 1;
+        }
+
+        .copy-btn:active {
+            background: #495057;
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+            opacity: 1;
+        }
+
+        .copy-btn.copied:hover {
+            background: #218838;
+        }
+
+        .output-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+            flex: 1;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        .download-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .clear-btn:hover {
+            background: #c82333;
+        }
+
+        .output-textarea {
+            width: 100%;
+            height: 400px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            resize: vertical;
+            background: white;
+            color: #2c3e50;
+        }
+
+        .output-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .status-message {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .output-textarea {
+                height: 300px;
+            }
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Install and Usage sections styling */
+        .install-section,
+        .using-section {
+            margin: 0 30px 30px 30px;
+        }
+
+        .section-title-main {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .tab-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .tabs {
+            display: flex;
+            background: #40e0d0;
+        }
+
+        .tab {
+            flex: 1;
+            background: #40e0d0;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .tab:hover {
+            background: #36c7b8;
+        }
+
+        .tab.active {
+            background: #2c9a93;
+        }
+
+        .tab-content {
+            padding: 25px;
+            background: white;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .tab-panel p {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            line-height: 1.5;
+        }
+
+        .code-block {
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .code-header {
+            background: #e9ecef;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            color: #6c757d;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .code-content {
+            padding: 15px;
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #2c3e50;
+            background: white;
+            overflow-x: auto;
+        }
+
+        .install-note {
+            margin-top: 15px;
+            padding: 12px 15px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .install-link {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .install-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Kubernetes Configuration Manager</h1>
+            <p>Select and merge your kubeconfig files with ease</p>
+        </div>
+
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <div class="info-icon">ℹ️</div>
+            <div class="info-text">
+                Copy your kubeconfig or download it below. Move the kubeconfig to the
+                <code class="path-highlight">$HOME/.kube</code> directory and name it <code
+                    class="path-highlight">config</code>
+                (without extension) for kubectl to automatically detect it.
+            </div>
+        </div>
+
+        <!-- Main Configuration Tool -->
+        <div class="content">
+            <div class="config-section">
+                <h2 class="section-title">Available Kubeconfigs</h2>
+
+                <button class="select-all" onclick="toggleSelectAll()">
+                    Select All Configs
+                </button>
+
+                <ul class="config-list" id="configList">
+                    {{range .names}}
+                    <li class="config-item">
+                        <label class="config-checkbox">
+                            <input type="checkbox" value="{{.}}" onchange="updateMergedConfig()">
+                            <span class="config-name">{{.}}</span>
+                        </label>
+                    </li>
+                    {{end}}
+                </ul>
+            </div>
+
+            <div class="output-section">
+                <h2 class="section-title">Merged Configuration</h2>
+
+                <div class="status-message" id="statusMessage"></div>
+
+                <div class="output-controls">
+                    <button class="download-btn" id="downloadBtn" onclick="downloadConfig()" disabled>
+                        Download kubeconfig
+                    </button>
+                    <button class="clear-btn" onclick="clearSelection()">
+                        Clear All
+                    </button>
+                </div>
+
+                <div class="textarea-container">
+                    <textarea class="output-textarea" id="mergedConfig"
+                        placeholder="Select kubeconfig files to see the merged configuration here..."
+                        readonly></textarea>
+                    <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()" title="Copy to clipboard">
+                        📋
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Install Section -->
+        <div class="install-section">
+            <h2 class="section-title-main">Install kubectl binary via curl</h2>
+
+            <div class="tab-container">
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('macos')">MACOS</button>
+                    <button class="tab" onclick="showTab('linux')">LINUX</button>
+                    <button class="tab" onclick="showTab('windows')">WINDOWS</button>
+                </div>
+
+                <div class="tab-content">
+                    <div id="macos-content" class="tab-panel active">
+                        <h3 style="margin-bottom: 15px; color: #2c3e50;">Option 1: Package Manager (Recommended)</h3>
+
+                        <p><strong>Homebrew:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">brew install kubectl</pre>
+                        </div>
+
+                        <p><strong>MacPorts:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">sudo port selfupdate
+sudo port install kubectl</pre>
+                        </div>
+
+                        <h3 style="margin: 25px 0 15px 0; color: #2c3e50;">Option 2: Direct Download</h3>
+                        <p><strong>1. Download the latest release with the command:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">STABLE_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$STABLE_VERSION/bin/darwin/amd64/kubectl</pre>
+                        </div>
+
+                        <p><strong>2. Make the kubectl binary executable and move the binary to your Path:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl</pre>
+                        </div>
+                    </div>
+
+                    <div id="linux-content" class="tab-panel">
+                        <h3 style="margin-bottom: 15px; color: #2c3e50;">Option 1: Package Manager (Recommended)</h3>
+
+                        <p><strong>Ubuntu/Debian (apt):</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg2 curl
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+sudo apt-get install -y kubectl</pre>
+                        </div>
+
+                        <p><strong>CentOS/RHEL/Fedora (yum/dnf):</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">cat &lt;&lt;EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+sudo yum install -y kubectl</pre>
+                        </div>
+
+                        <p><strong>Snap (Universal):</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">sudo snap install kubectl --classic</pre>
+                        </div>
+
+                        <h3 style="margin: 25px 0 15px 0; color: #2c3e50;">Option 2: Direct Download</h3>
+                        <p><strong>1. Download the latest release with the command:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">STABLE_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$STABLE_VERSION/bin/linux/amd64/kubectl</pre>
+                        </div>
+
+                        <p><strong>2. Make the kubectl binary executable and move the binary to your Path:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl</pre>
+                        </div>
+                    </div>
+
+                    <div id="windows-content" class="tab-panel">
+                        <h3 style="margin-bottom: 15px; color: #2c3e50;">Option 1: Package Manager (Recommended)</h3>
+
+                        <p><strong>Chocolatey:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">choco install kubernetes-cli</pre>
+                        </div>
+
+                        <p><strong>Scoop:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">scoop install kubectl</pre>
+                        </div>
+
+                        <p><strong>Winget:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">winget install -e --id Kubernetes.kubectl</pre>
+                        </div>
+
+                        <h3 style="margin: 25px 0 15px 0; color: #2c3e50;">Option 2: Direct Download</h3>
+                        <p><strong>1. Download the latest release with PowerShell:</strong></p>
+                        <div class="code-block">
+                            <div class="code-header">powershell</div>
+                            <pre
+                                class="code-content">curl.exe -LO "https://dl.k8s.io/release/v1.28.0/bin/windows/amd64/kubectl.exe"</pre>
+                        </div>
+
+                        <p><strong>2. Add the binary to your PATH environment variable.</strong></p>
+                    </div>
+
+
+                </div>
+
+                <p class="install-note">
+                    For more details of install kubectl, please see <a
+                        href="https://kubernetes.io/docs/tasks/tools/install-kubectl/" class="install-link">Install and
+                        Set Up kubectl</a>.
+                </p>
+            </div>
+        </div>
+
+        <!-- Using Section -->
+        <div class="using-section">
+            <h2 class="section-title-main">Using</h2>
+
+            <div class="tab-container">
+                <div class="tabs">
+                    <button class="tab active" onclick="showUsageTab('macos-usage')">MACOS</button>
+                    <button class="tab" onclick="showUsageTab('linux-usage')">LINUX</button>
+                    <button class="tab" onclick="showUsageTab('windows-usage')">WINDOWS</button>
+                </div>
+
+                <div class="tab-content">
+                    <div id="macos-usage-content" class="tab-panel active">
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">kubectl get pods</pre>
+                        </div>
+                    </div>
+
+                    <div id="linux-usage-content" class="tab-panel">
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">kubectl get pods</pre>
+                        </div>
+                    </div>
+
+                    <div id="windows-usage-content" class="tab-panel">
+                        <div class="code-block">
+                            <div class="code-header">cli</div>
+                            <pre class="code-content">kubectl get pods</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isSelectAllMode = false;
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+            statusEl.style.display = 'block';
+
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 3000);
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('#configList input[type="checkbox"]');
+            const selectAllBtn = document.querySelector('.select-all');
+
+            isSelectAllMode = !isSelectAllMode;
+
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = isSelectAllMode;
+                updateItemSelection(checkbox);
+            });
+
+            selectAllBtn.textContent = isSelectAllMode ? 'Deselect All' : 'Select All Configs';
+            updateMergedConfig();
+        }
+
+        function updateItemSelection(checkbox) {
+            const item = checkbox.closest('.config-item');
+            if (checkbox.checked) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        }
+
+        function clearSelection() {
+            const checkboxes = document.querySelectorAll('#configList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                updateItemSelection(checkbox);
+            });
+
+            document.getElementById('mergedConfig').value = '';
+            document.getElementById('downloadBtn').disabled = true;
+            document.querySelector('.select-all').textContent = 'Select All Configs';
+            isSelectAllMode = false;
+
+            showStatus('Selection cleared', 'info');
+        }
+
+        async function updateMergedConfig() {
+            const checkboxes = document.querySelectorAll('#configList input[type="checkbox"]:checked');
+            const selectedConfigs = Array.from(checkboxes).map(cb => cb.value);
+            const mergedConfigEl = document.getElementById('mergedConfig');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            // Update checkbox visual states
+            document.querySelectorAll('#configList input[type="checkbox"]').forEach(updateItemSelection);
+
+            if (selectedConfigs.length === 0) {
+                mergedConfigEl.value = '';
+                downloadBtn.disabled = true;
+                return;
+            }
+
+            // Show loading state
+            mergedConfigEl.classList.add('loading');
+            downloadBtn.innerHTML = '<span class="spinner"></span>Generating...';
+            downloadBtn.disabled = true;
+
+            try {
+                const params = selectedConfigs.map(config => `name=${encodeURIComponent(config)}`).join('&');
+                const response = await fetch(`/yaml/get?${params}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const yamlContent = await response.text();
+                mergedConfigEl.value = yamlContent;
+                downloadBtn.innerHTML = 'Download kubeconfig';
+                downloadBtn.disabled = false;
+
+                showStatus(`Successfully merged ${selectedConfigs.length} config(s)`, 'success');
+
+            } catch (error) {
+                console.error('Error fetching merged config:', error);
+                mergedConfigEl.value = `# Error: Failed to merge configurations\n# ${error.message}`;
+                downloadBtn.innerHTML = 'Download kubeconfig';
+                downloadBtn.disabled = true;
+
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                mergedConfigEl.classList.remove('loading');
+            }
+        }
+
+        function downloadConfig() {
+            const content = document.getElementById('mergedConfig').value;
+            if (!content || content.startsWith('# Error:')) {
+                showStatus('No valid configuration to download', 'error');
+                return;
+            }
+
+            const blob = new Blob([content], { type: 'application/x-yaml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+
+            a.href = url;
+            a.download = 'kubeconfig.yaml';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showStatus('Configuration downloaded successfully', 'success');
+        }
+
+        async function copyToClipboard() {
+            const content = document.getElementById('mergedConfig').value;
+            const copyBtn = document.getElementById('copyBtn');
+
+            if (!content || content.startsWith('# Error:')) {
+                showStatus('No valid configuration to copy', 'error');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(content);
+
+                // Visual feedback
+                copyBtn.textContent = '✅ Copied!';
+                copyBtn.classList.add('copied');
+
+                showStatus('Configuration copied to clipboard', 'success');
+
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    copyBtn.textContent = '📋 Copy';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+
+            } catch (err) {
+                console.error('Failed to copy to clipboard:', err);
+
+                // Fallback for older browsers
+                try {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = content;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+
+                    copyBtn.textContent = '✅ Copied!';
+                    copyBtn.classList.add('copied');
+                    showStatus('Configuration copied to clipboard', 'success');
+
+                    setTimeout(() => {
+                        copyBtn.textContent = '📋 Copy';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+
+                } catch (fallbackErr) {
+                    showStatus('Failed to copy to clipboard', 'error');
+                }
+            }
+        }
+
+        // Tab functionality for Install section
+        function showTab(tabName) {
+            // Hide all tab panels
+            document.querySelectorAll('.install-section .tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            document.querySelectorAll('.install-section .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab panel
+            document.getElementById(tabName + '-content').classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Tab functionality for Using section
+        function showUsageTab(tabName) {
+            // Hide all tab panels
+            document.querySelectorAll('.using-section .tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            document.querySelectorAll('.using-section .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab panel
+            document.getElementById(tabName + '-content').classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function () {
+            // Add change listeners to all checkboxes
+            document.querySelectorAll('#configList input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', updateMergedConfig);
+            });
+
+            showStatus('Ready to merge kubeconfig files', 'info');
+        });
+    </script>
+</body>
+
+</html>
