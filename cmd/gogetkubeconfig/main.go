@@ -1,12 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/charmbracelet/log"
-	"github.com/joomcode/errorx"
 	"github.com/rgeraskin/gogetkubeconfig/internal/server"
 )
 
@@ -47,50 +44,7 @@ func newAppConfig(logger *log.Logger) (*AppConfig, error) {
 		config.Port = defaultPort
 	}
 
-	// validate config
-	if err := validateKubeConfigs(config); err != nil {
-		return nil, errorx.Decorate(err, "invalid config")
-	}
-
 	return config, nil
-}
-
-func validateKubeConfigs(c *AppConfig) error {
-	info, err := os.Stat(c.ConfigsDir)
-
-	c.Logger.Debug("Checking if config directory exists", "path", c.ConfigsDir)
-	if err != nil && os.IsNotExist(err) {
-		return fmt.Errorf("config directory does not exist: %s", c.ConfigsDir)
-	}
-
-	// unexpected error
-	if err != nil {
-		return errorx.Decorate(err, "unexpected error")
-	}
-
-	c.Logger.Debug("Checking if config directory is a directory", "path", c.ConfigsDir)
-	if !info.IsDir() {
-		return fmt.Errorf("config directory is not a directory: %s", c.ConfigsDir)
-	}
-
-	c.Logger.Debug("Checking if configs in dir is readable", "path", c.ConfigsDir)
-	files, err := os.ReadDir(c.ConfigsDir)
-	if err != nil {
-		return errorx.Decorate(err, "can't read configs directory")
-	}
-
-	// Check if all files are valid kubeconfigs
-	for _, file := range files {
-		filePath := filepath.Join(c.ConfigsDir, file.Name())
-		c.Logger.Debug("Checking if config file is valid kubeconfig", "path", filePath)
-
-		_, err := server.NewKubeConfig(filePath, c.Logger)
-		if err != nil {
-			return errorx.Decorate(err, "kubeconfig file is invalid: path=%s", filePath)
-		}
-	}
-
-	return nil
 }
 
 func NewLogger() *log.Logger {

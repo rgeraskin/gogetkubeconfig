@@ -3,11 +3,9 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/charmbracelet/log"
-	"github.com/rgeraskin/gogetkubeconfig/internal/server"
 	"github.com/rgeraskin/gogetkubeconfig/internal/testutil"
 )
 
@@ -95,9 +93,9 @@ func TestNewAppConfig(t *testing.T) {
 			name:         "invalid configs directory",
 			configsDir:   "/nonexistent/directory",
 			port:         "8080",
-			wantErr:      true,
-			expectedDir:  "",
-			expectedPort: "",
+			wantErr:      false, // App config creation no longer validates directory
+			expectedDir:  "/nonexistent/directory",
+			expectedPort: "8080",
 		},
 	}
 
@@ -137,109 +135,6 @@ func TestNewAppConfig(t *testing.T) {
 
 			if config.Logger == nil {
 				t.Error("Expected Logger to be set")
-			}
-		})
-	}
-}
-
-func TestValidateKubeConfigs(t *testing.T) {
-	logger := log.New(os.Stderr)
-	logger.SetLevel(log.ErrorLevel)
-
-	tests := []struct {
-		name          string
-		setupFunc     func(t *testing.T) string
-		wantErr       bool
-		errorContains string
-	}{
-		{
-			name: "valid configs directory",
-			setupFunc: func(t *testing.T) string {
-				tempDir := t.TempDir()
-				configsDir := filepath.Join(tempDir, "configs")
-				err := os.MkdirAll(configsDir, 0755)
-				if err != nil {
-					t.Fatalf("Failed to create test directory: %v", err)
-				}
-
-				testConfigs := map[string]string{
-					"test.yaml": "valid-test.yaml",
-				}
-				testutil.CopyTestKubeConfigs(t, configsDir, testConfigs)
-
-				return configsDir
-			},
-			wantErr: false,
-		},
-		{
-			name: "nonexistent directory",
-			setupFunc: func(t *testing.T) string {
-				return "/nonexistent/directory"
-			},
-			wantErr:       true,
-			errorContains: "does not exist",
-		},
-		{
-			name: "directory is a file",
-			setupFunc: func(t *testing.T) string {
-				tempDir := t.TempDir()
-				filePath := filepath.Join(tempDir, "notadir")
-				err := os.WriteFile(filePath, []byte("test"), 0644)
-				if err != nil {
-					t.Fatalf("Failed to create test file: %v", err)
-				}
-				return filePath
-			},
-			wantErr:       true,
-			errorContains: "not a directory",
-		},
-		{
-			name: "invalid kubeconfig file",
-			setupFunc: func(t *testing.T) string {
-				tempDir := t.TempDir()
-				configsDir := filepath.Join(tempDir, "configs")
-				err := os.MkdirAll(configsDir, 0755)
-				if err != nil {
-					t.Fatalf("Failed to create test directory: %v", err)
-				}
-
-				testConfigs := map[string]string{
-					"invalid.yaml": "invalid.yaml",
-				}
-				testutil.CopyTestKubeConfigs(t, configsDir, testConfigs)
-
-				return configsDir
-			},
-			wantErr:       true,
-			errorContains: "kubeconfig file is invalid",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			configsDir := tt.setupFunc(t)
-
-			config := &AppConfig{
-				Server: server.Server{
-					ConfigsDir: configsDir,
-					Logger:     logger,
-				},
-			}
-
-			err := validateKubeConfigs(config)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Error("Expected error, got nil")
-					return
-				}
-				if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
-					t.Errorf("Expected error to contain %q, got %q", tt.errorContains, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
 			}
 		})
 	}
