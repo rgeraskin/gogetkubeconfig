@@ -267,11 +267,8 @@ func (s *Server) HandleGetKubeConfigs(
 	}
 }
 
-// loadAllConfigs loads all config files from the configs directory into memory
-func (s *Server) loadAllConfigs() error {
-	s.Logger.Info("Loading all configs on startup", "configsDir", s.ConfigsDir)
-
-	// Validate configs directory exists and is a directory
+// validateConfigsDirectory validates that the configs directory exists and is a directory
+func (s *Server) validateConfigsDirectory() error {
 	info, err := os.Stat(s.ConfigsDir)
 	if err != nil && os.IsNotExist(err) {
 		return errorx.InternalError.New("config directory does not exist: %s", s.ConfigsDir)
@@ -282,32 +279,98 @@ func (s *Server) loadAllConfigs() error {
 	if !info.IsDir() {
 		return errorx.InternalError.New("config directory is not a directory: %s", s.ConfigsDir)
 	}
+	return nil
+}
 
+// readConfigFiles reads all files from the configs directory
+func (s *Server) readConfigFiles() ([]os.DirEntry, error) {
 	files, err := os.ReadDir(s.ConfigsDir)
 	if err != nil {
-		return errorx.Decorate(err, "failed to read configs directory")
+		return nil, errorx.Decorate(err, "failed to read configs directory")
+	}
+	return files, nil
+}
+
+// loadSingleConfig loads a single config file and stores it in LoadedConfigs
+func (s *Server) loadSingleConfig(file os.DirEntry) error {
+	if file.IsDir() {
+		return nil // Skip directories
 	}
 
+	filePath := filepath.Join(s.ConfigsDir, file.Name())
+	configName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+
+	s.Logger.Debug("Loading config file", "path", filePath, "name", configName)
+
+	kubeConfig, err := NewKubeConfig(filePath, s.Logger)
+	if err != nil {
+		return errorx.Decorate(err, "failed to load kubeconfig: %s", filePath)
+	}
+
+	s.LoadedConfigs[configName] = kubeConfig
+	s.Logger.Debug("Successfully loaded config", "name", configName)
+	return nil
+}
+
+// loadAllConfigs loads all config files from the configs directory into memory
+func (s *Server) loadAllConfigs() error {
+	s.Logger.Info("Loading all configs on startup", "configsDir", s.ConfigsDir)
+
+	// Validate configs directory exists and is a directory
+	if err := s.validateConfigsDirectory(); err != nil {
+		return err
+	}
+
+	// Read all files from the configs directory
+	files, err := s.readConfigFiles()
+	if err != nil {
+		return err
+	}
+
+	// Load each config file
 	for _, file := range files {
-		if file.IsDir() {
-			continue
+		if err := s.loadSingleConfig(file); err != nil {
+			return err
 		}
-
-		filePath := filepath.Join(s.ConfigsDir, file.Name())
-		configName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
-
-		s.Logger.Debug("Loading config file", "path", filePath, "name", configName)
-
-		kubeConfig, err := NewKubeConfig(filePath, s.Logger)
-		if err != nil {
-			return errorx.Decorate(err, "failed to load kubeconfig: %s", filePath)
-		}
-
-		s.LoadedConfigs[configName] = kubeConfig
-		s.Logger.Debug("Successfully loaded config", "name", configName)
 	}
 
 	s.Logger.Info("Successfully loaded all configs", "count", len(s.LoadedConfigs))
+	return nil
+}
+
+// createEmptyKubeConfigForValidation creates an empty kubeconfig for merge validation
+func (s *Server) createEmptyKubeConfigForValidation() (*KubeConfig, error) {
+	mergedConfig, err := NewKubeConfig("", s.Logger)
+	if err != nil {
+		return nil, errorx.Decorate(err, "failed to create empty kubeconfig for merge test")
+	}
+	return mergedConfig, nil
+}
+
+// getAllConfigNames returns a slice of all loaded config names
+func (s *Server) getAllConfigNames() []string {
+	configNames := make([]string, 0, len(s.LoadedConfigs))
+	for name := range s.LoadedConfigs {
+		configNames = append(configNames, name)
+	}
+	return configNames
+}
+
+// mergeAllConfigsForValidation attempts to merge all loaded configs to test compatibility
+func (s *Server) mergeAllConfigsForValidation(
+	mergedConfig *KubeConfig,
+	configNames []string,
+) error {
+	s.Logger.Debug("Testing merge of all configs", "configs", configNames)
+
+	for name, config := range s.LoadedConfigs {
+		s.Logger.Debug("Merging config for validation", "name", name)
+		var err error
+		mergedConfig, err = mergeKubeConfigs(mergedConfig, config)
+		if err != nil {
+			return errorx.Decorate(err, "failed to merge config '%s' during validation", name)
+		}
+	}
 	return nil
 }
 
@@ -321,25 +384,17 @@ func (s *Server) validateAllConfigsMergeable() error {
 	}
 
 	// Create empty kubeconfig for merging
-	mergedConfig, err := NewKubeConfig("", s.Logger)
+	mergedConfig, err := s.createEmptyKubeConfigForValidation()
 	if err != nil {
-		return errorx.Decorate(err, "failed to create empty kubeconfig for merge test")
+		return err
 	}
+
+	// Get all config names for logging
+	configNames := s.getAllConfigNames()
 
 	// Try to merge all configs
-	configNames := make([]string, 0, len(s.LoadedConfigs))
-	for name := range s.LoadedConfigs {
-		configNames = append(configNames, name)
-	}
-
-	s.Logger.Debug("Testing merge of all configs", "configs", configNames)
-
-	for name, config := range s.LoadedConfigs {
-		s.Logger.Debug("Merging config for validation", "name", name)
-		mergedConfig, err = mergeKubeConfigs(mergedConfig, config)
-		if err != nil {
-			return errorx.Decorate(err, "failed to merge config '%s' during validation", name)
-		}
+	if err := s.mergeAllConfigsForValidation(mergedConfig, configNames); err != nil {
+		return err
 	}
 
 	s.Logger.Info("Successfully validated that all configs can be merged together")

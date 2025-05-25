@@ -57,7 +57,7 @@
 				
 				<option value="file0">github.com/rgeraskin/gogetkubeconfig/cmd/gogetkubeconfig/main.go (53.3%)</option>
 				
-				<option value="file1">github.com/rgeraskin/gogetkubeconfig/internal/server/server.go (83.4%)</option>
+				<option value="file1">github.com/rgeraskin/gogetkubeconfig/internal/server/server.go (83.0%)</option>
 				
 				<option value="file2">github.com/rgeraskin/gogetkubeconfig/internal/server/util.go (100.0%)</option>
 				
@@ -257,47 +257,56 @@ func (s *Server) TemplateIndex(w http.ResponseWriter) error <span class="cov8" t
 func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         err := s.TemplateIndex(w)
         if err != nil </span><span class="cov0" title="0">{
-                s.Logger.Error(err)
-                http.Error(w, "Failed to template index", http.StatusInternalServerError)
+                s.handleHTTPError(w, err, "Failed to template index", http.StatusInternalServerError)
         }</span>
 }
 
 // ListConfigsYaml lists all available kubeconfigs in YAML format
 func (s *Server) HandleListConfigsYaml(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
-        s.HandleListConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
-                enc := yaml.NewEncoder(w)
-                enc.SetIndent(2)
-                return enc
-        }</span>)
-}
+        s.HandleListConfigs(w, r, createYAMLEncoder)
+}</span>
 
 // ListConfigsJson lists all available kubeconfigs in JSON format
 func (s *Server) HandleListConfigsJson(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
-        s.HandleListConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
-                return json.NewEncoder(w)
-        }</span>)
-}
+        s.HandleListConfigs(w, r, createJSONEncoder)
+}</span>
 
 // GetKubeConfigsYaml returns a merged kubeconfig in YAML format
 func (s *Server) HandleGetKubeConfigsYaml(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
-        s.HandleGetKubeConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
-                enc := yaml.NewEncoder(w)
-                enc.SetIndent(2)
-                return enc
-        }</span>)
-}
+        s.HandleGetKubeConfigs(w, r, createYAMLEncoder)
+}</span>
 
 // GetKubeConfigsJson returns a merged kubeconfig in JSON format
 func (s *Server) HandleGetKubeConfigsJson(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
-        s.HandleGetKubeConfigs(w, r, func(w io.Writer) Encoder </span><span class="cov8" title="1">{
-                return json.NewEncoder(w)
-        }</span>)
-}
+        s.HandleGetKubeConfigs(w, r, createJSONEncoder)
+}</span>
 
 // Define an Encoder interface
 type Encoder interface {
         Encode(v interface{}) error
 }
+
+// handleHTTPError logs an error and sends an HTTP error response
+func (s *Server) handleHTTPError(w http.ResponseWriter, err error, message string, statusCode int) <span class="cov8" title="1">{
+        s.Logger.Error(message, "error", err)
+        if err != nil </span><span class="cov8" title="1">{
+                http.Error(w, message+": "+err.Error(), statusCode)
+        }</span> else<span class="cov0" title="0"> {
+                http.Error(w, message, statusCode)
+        }</span>
+}
+
+// createYAMLEncoder creates a YAML encoder with consistent formatting
+func createYAMLEncoder(w io.Writer) Encoder <span class="cov8" title="1">{
+        enc := yaml.NewEncoder(w)
+        enc.SetIndent(2)
+        return enc
+}</span>
+
+// createJSONEncoder creates a JSON encoder
+func createJSONEncoder(w io.Writer) Encoder <span class="cov8" title="1">{
+        return json.NewEncoder(w)
+}</span>
 
 // listConfigs returns all available config names from the loaded configs
 func (s *Server) listConfigs() ([]string, error) <span class="cov8" title="1">{
@@ -318,20 +327,14 @@ func (s *Server) HandleListConfigs(
         s.Logger.Info("HandleListConfigs")
         names, err := s.listConfigs()
         if err != nil </span><span class="cov0" title="0">{
-                s.Logger.Error("Failed to list configs in dir", "error", err)
-                http.Error(w, "Failed to list configs in dir", http.StatusInternalServerError)
+                s.handleHTTPError(w, err, "Failed to list configs in dir", http.StatusInternalServerError)
                 return
         }</span>
 
         // w.Header().Set("Content-Type", "application/json")
         <span class="cov8" title="1">err = encoder(w).Encode(names)
         if err != nil </span><span class="cov8" title="1">{
-                s.Logger.Error("Failed to encode configs list", "error", err)
-                http.Error(
-                        w,
-                        "Failed to encode configs list: "+err.Error(),
-                        http.StatusInternalServerError,
-                )
+                s.handleHTTPError(w, err, "Failed to encode configs list", http.StatusInternalServerError)
                 return
         }</span>
 
@@ -395,10 +398,10 @@ func (s *Server) HandleGetKubeConfigs(
         // Get all available config names
         configNames, err := s.listConfigs()
         if err != nil </span><span class="cov0" title="0">{
-                s.Logger.Error("Failed to get config names", "error", err)
-                http.Error(
+                s.handleHTTPError(
                         w,
-                        "Failed to read configs directory: "+err.Error(),
+                        err,
+                        "Failed to read configs directory",
                         http.StatusInternalServerError,
                 )
                 return
@@ -410,11 +413,10 @@ func (s *Server) HandleGetKubeConfigs(
         // Load and merge the requested configs
         kubeConfig, err := s.loadAndMergeConfigs(requestedNames)
         if err != nil </span><span class="cov8" title="1">{
-                s.Logger.Error("Failed to load and merge configs", "error", err)
                 if strings.Contains(err.Error(), "not found") </span><span class="cov8" title="1">{
-                        http.Error(w, err.Error(), http.StatusNotFound)
+                        s.handleHTTPError(w, err, "", http.StatusNotFound)
                 }</span> else<span class="cov0" title="0"> {
-                        http.Error(w, err.Error(), http.StatusInternalServerError)
+                        s.handleHTTPError(w, err, "Failed to load and merge configs", http.StatusInternalServerError)
                 }</span>
                 <span class="cov8" title="1">return</span>
         }
@@ -422,21 +424,13 @@ func (s *Server) HandleGetKubeConfigs(
         // Return the merged config
         <span class="cov8" title="1">err = encoder(w).Encode(kubeConfig)
         if err != nil </span><span class="cov8" title="1">{
-                s.Logger.Error("Failed to serialize kubeconfig", "error", err)
-                http.Error(
-                        w,
-                        "Failed to serialize kubeconfig: "+err.Error(),
-                        http.StatusInternalServerError,
-                )
+                s.handleHTTPError(w, err, "Failed to serialize kubeconfig", http.StatusInternalServerError)
                 return
         }</span>
 }
 
-// loadAllConfigs loads all config files from the configs directory into memory
-func (s *Server) loadAllConfigs() error <span class="cov8" title="1">{
-        s.Logger.Info("Loading all configs on startup", "configsDir", s.ConfigsDir)
-
-        // Validate configs directory exists and is a directory
+// validateConfigsDirectory validates that the configs directory exists and is a directory
+func (s *Server) validateConfigsDirectory() error <span class="cov8" title="1">{
         info, err := os.Stat(s.ConfigsDir)
         if err != nil &amp;&amp; os.IsNotExist(err) </span><span class="cov0" title="0">{
                 return errorx.InternalError.New("config directory does not exist: %s", s.ConfigsDir)
@@ -447,33 +441,99 @@ func (s *Server) loadAllConfigs() error <span class="cov8" title="1">{
         <span class="cov8" title="1">if !info.IsDir() </span><span class="cov0" title="0">{
                 return errorx.InternalError.New("config directory is not a directory: %s", s.ConfigsDir)
         }</span>
+        <span class="cov8" title="1">return nil</span>
+}
 
-        <span class="cov8" title="1">files, err := os.ReadDir(s.ConfigsDir)
+// readConfigFiles reads all files from the configs directory
+func (s *Server) readConfigFiles() ([]os.DirEntry, error) <span class="cov8" title="1">{
+        files, err := os.ReadDir(s.ConfigsDir)
         if err != nil </span><span class="cov0" title="0">{
-                return errorx.Decorate(err, "failed to read configs directory")
+                return nil, errorx.Decorate(err, "failed to read configs directory")
+        }</span>
+        <span class="cov8" title="1">return files, nil</span>
+}
+
+// loadSingleConfig loads a single config file and stores it in LoadedConfigs
+func (s *Server) loadSingleConfig(file os.DirEntry) error <span class="cov8" title="1">{
+        if file.IsDir() </span><span class="cov0" title="0">{
+                return nil // Skip directories
         }</span>
 
+        <span class="cov8" title="1">filePath := filepath.Join(s.ConfigsDir, file.Name())
+        configName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+
+        s.Logger.Debug("Loading config file", "path", filePath, "name", configName)
+
+        kubeConfig, err := NewKubeConfig(filePath, s.Logger)
+        if err != nil </span><span class="cov0" title="0">{
+                return errorx.Decorate(err, "failed to load kubeconfig: %s", filePath)
+        }</span>
+
+        <span class="cov8" title="1">s.LoadedConfigs[configName] = kubeConfig
+        s.Logger.Debug("Successfully loaded config", "name", configName)
+        return nil</span>
+}
+
+// loadAllConfigs loads all config files from the configs directory into memory
+func (s *Server) loadAllConfigs() error <span class="cov8" title="1">{
+        s.Logger.Info("Loading all configs on startup", "configsDir", s.ConfigsDir)
+
+        // Validate configs directory exists and is a directory
+        if err := s.validateConfigsDirectory(); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Read all files from the configs directory
+        <span class="cov8" title="1">files, err := s.readConfigFiles()
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // Load each config file
         <span class="cov8" title="1">for _, file := range files </span><span class="cov8" title="1">{
-                if file.IsDir() </span><span class="cov0" title="0">{
-                        continue</span>
-                }
-
-                <span class="cov8" title="1">filePath := filepath.Join(s.ConfigsDir, file.Name())
-                configName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
-
-                s.Logger.Debug("Loading config file", "path", filePath, "name", configName)
-
-                kubeConfig, err := NewKubeConfig(filePath, s.Logger)
-                if err != nil </span><span class="cov0" title="0">{
-                        return errorx.Decorate(err, "failed to load kubeconfig: %s", filePath)
+                if err := s.loadSingleConfig(file); err != nil </span><span class="cov0" title="0">{
+                        return err
                 }</span>
-
-                <span class="cov8" title="1">s.LoadedConfigs[configName] = kubeConfig
-                s.Logger.Debug("Successfully loaded config", "name", configName)</span>
         }
 
         <span class="cov8" title="1">s.Logger.Info("Successfully loaded all configs", "count", len(s.LoadedConfigs))
         return nil</span>
+}
+
+// createEmptyKubeConfigForValidation creates an empty kubeconfig for merge validation
+func (s *Server) createEmptyKubeConfigForValidation() (*KubeConfig, error) <span class="cov8" title="1">{
+        mergedConfig, err := NewKubeConfig("", s.Logger)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, errorx.Decorate(err, "failed to create empty kubeconfig for merge test")
+        }</span>
+        <span class="cov8" title="1">return mergedConfig, nil</span>
+}
+
+// getAllConfigNames returns a slice of all loaded config names
+func (s *Server) getAllConfigNames() []string <span class="cov8" title="1">{
+        configNames := make([]string, 0, len(s.LoadedConfigs))
+        for name := range s.LoadedConfigs </span><span class="cov8" title="1">{
+                configNames = append(configNames, name)
+        }</span>
+        <span class="cov8" title="1">return configNames</span>
+}
+
+// mergeAllConfigsForValidation attempts to merge all loaded configs to test compatibility
+func (s *Server) mergeAllConfigsForValidation(
+        mergedConfig *KubeConfig,
+        configNames []string,
+) error <span class="cov8" title="1">{
+        s.Logger.Debug("Testing merge of all configs", "configs", configNames)
+
+        for name, config := range s.LoadedConfigs </span><span class="cov8" title="1">{
+                s.Logger.Debug("Merging config for validation", "name", name)
+                var err error
+                mergedConfig, err = mergeKubeConfigs(mergedConfig, config)
+                if err != nil </span><span class="cov0" title="0">{
+                        return errorx.Decorate(err, "failed to merge config '%s' during validation", name)
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
 }
 
 // validateAllConfigsMergeable tests that all loaded configs can be merged together
@@ -486,26 +546,18 @@ func (s *Server) validateAllConfigsMergeable() error <span class="cov8" title="1
         }</span>
 
         // Create empty kubeconfig for merging
-        <span class="cov8" title="1">mergedConfig, err := NewKubeConfig("", s.Logger)
+        <span class="cov8" title="1">mergedConfig, err := s.createEmptyKubeConfigForValidation()
         if err != nil </span><span class="cov0" title="0">{
-                return errorx.Decorate(err, "failed to create empty kubeconfig for merge test")
+                return err
         }</span>
+
+        // Get all config names for logging
+        <span class="cov8" title="1">configNames := s.getAllConfigNames()
 
         // Try to merge all configs
-        <span class="cov8" title="1">configNames := make([]string, 0, len(s.LoadedConfigs))
-        for name := range s.LoadedConfigs </span><span class="cov8" title="1">{
-                configNames = append(configNames, name)
+        if err := s.mergeAllConfigsForValidation(mergedConfig, configNames); err != nil </span><span class="cov0" title="0">{
+                return err
         }</span>
-
-        <span class="cov8" title="1">s.Logger.Debug("Testing merge of all configs", "configs", configNames)
-
-        for name, config := range s.LoadedConfigs </span><span class="cov8" title="1">{
-                s.Logger.Debug("Merging config for validation", "name", name)
-                mergedConfig, err = mergeKubeConfigs(mergedConfig, config)
-                if err != nil </span><span class="cov0" title="0">{
-                        return errorx.Decorate(err, "failed to merge config '%s' during validation", name)
-                }</span>
-        }
 
         <span class="cov8" title="1">s.Logger.Info("Successfully validated that all configs can be merged together")
         return nil</span>
