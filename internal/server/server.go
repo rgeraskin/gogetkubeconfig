@@ -95,46 +95,55 @@ func (s *Server) TemplateIndex(w http.ResponseWriter) error {
 func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	err := s.TemplateIndex(w)
 	if err != nil {
-		s.Logger.Error(err)
-		http.Error(w, "Failed to template index", http.StatusInternalServerError)
+		s.handleHTTPError(w, err, "Failed to template index", http.StatusInternalServerError)
 	}
 }
 
 // ListConfigsYaml lists all available kubeconfigs in YAML format
 func (s *Server) HandleListConfigsYaml(w http.ResponseWriter, r *http.Request) {
-	s.HandleListConfigs(w, r, func(w io.Writer) Encoder {
-		enc := yaml.NewEncoder(w)
-		enc.SetIndent(2)
-		return enc
-	})
+	s.HandleListConfigs(w, r, createYAMLEncoder)
 }
 
 // ListConfigsJson lists all available kubeconfigs in JSON format
 func (s *Server) HandleListConfigsJson(w http.ResponseWriter, r *http.Request) {
-	s.HandleListConfigs(w, r, func(w io.Writer) Encoder {
-		return json.NewEncoder(w)
-	})
+	s.HandleListConfigs(w, r, createJSONEncoder)
 }
 
 // GetKubeConfigsYaml returns a merged kubeconfig in YAML format
 func (s *Server) HandleGetKubeConfigsYaml(w http.ResponseWriter, r *http.Request) {
-	s.HandleGetKubeConfigs(w, r, func(w io.Writer) Encoder {
-		enc := yaml.NewEncoder(w)
-		enc.SetIndent(2)
-		return enc
-	})
+	s.HandleGetKubeConfigs(w, r, createYAMLEncoder)
 }
 
 // GetKubeConfigsJson returns a merged kubeconfig in JSON format
 func (s *Server) HandleGetKubeConfigsJson(w http.ResponseWriter, r *http.Request) {
-	s.HandleGetKubeConfigs(w, r, func(w io.Writer) Encoder {
-		return json.NewEncoder(w)
-	})
+	s.HandleGetKubeConfigs(w, r, createJSONEncoder)
 }
 
 // Define an Encoder interface
 type Encoder interface {
 	Encode(v interface{}) error
+}
+
+// handleHTTPError logs an error and sends an HTTP error response
+func (s *Server) handleHTTPError(w http.ResponseWriter, err error, message string, statusCode int) {
+	s.Logger.Error(message, "error", err)
+	if err != nil {
+		http.Error(w, message+": "+err.Error(), statusCode)
+	} else {
+		http.Error(w, message, statusCode)
+	}
+}
+
+// createYAMLEncoder creates a YAML encoder with consistent formatting
+func createYAMLEncoder(w io.Writer) Encoder {
+	enc := yaml.NewEncoder(w)
+	enc.SetIndent(2)
+	return enc
+}
+
+// createJSONEncoder creates a JSON encoder
+func createJSONEncoder(w io.Writer) Encoder {
+	return json.NewEncoder(w)
 }
 
 // listConfigs returns all available config names from the loaded configs
@@ -156,20 +165,14 @@ func (s *Server) HandleListConfigs(
 	s.Logger.Info("HandleListConfigs")
 	names, err := s.listConfigs()
 	if err != nil {
-		s.Logger.Error("Failed to list configs in dir", "error", err)
-		http.Error(w, "Failed to list configs in dir", http.StatusInternalServerError)
+		s.handleHTTPError(w, err, "Failed to list configs in dir", http.StatusInternalServerError)
 		return
 	}
 
 	// w.Header().Set("Content-Type", "application/json")
 	err = encoder(w).Encode(names)
 	if err != nil {
-		s.Logger.Error("Failed to encode configs list", "error", err)
-		http.Error(
-			w,
-			"Failed to encode configs list: "+err.Error(),
-			http.StatusInternalServerError,
-		)
+		s.handleHTTPError(w, err, "Failed to encode configs list", http.StatusInternalServerError)
 		return
 	}
 
@@ -233,10 +236,10 @@ func (s *Server) HandleGetKubeConfigs(
 	// Get all available config names
 	configNames, err := s.listConfigs()
 	if err != nil {
-		s.Logger.Error("Failed to get config names", "error", err)
-		http.Error(
+		s.handleHTTPError(
 			w,
-			"Failed to read configs directory: "+err.Error(),
+			err,
+			"Failed to read configs directory",
 			http.StatusInternalServerError,
 		)
 		return
@@ -248,11 +251,10 @@ func (s *Server) HandleGetKubeConfigs(
 	// Load and merge the requested configs
 	kubeConfig, err := s.loadAndMergeConfigs(requestedNames)
 	if err != nil {
-		s.Logger.Error("Failed to load and merge configs", "error", err)
 		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			s.handleHTTPError(w, err, "", http.StatusNotFound)
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			s.handleHTTPError(w, err, "Failed to load and merge configs", http.StatusInternalServerError)
 		}
 		return
 	}
@@ -260,12 +262,7 @@ func (s *Server) HandleGetKubeConfigs(
 	// Return the merged config
 	err = encoder(w).Encode(kubeConfig)
 	if err != nil {
-		s.Logger.Error("Failed to serialize kubeconfig", "error", err)
-		http.Error(
-			w,
-			"Failed to serialize kubeconfig: "+err.Error(),
-			http.StatusInternalServerError,
-		)
+		s.handleHTTPError(w, err, "Failed to serialize kubeconfig", http.StatusInternalServerError)
 		return
 	}
 }
