@@ -72,9 +72,14 @@
 		<pre class="file" id="file0" style="display: none">package main
 
 import (
+        "embed"
+
         "github.com/rgeraskin/kubedepot/internal/config"
         "github.com/rgeraskin/kubedepot/internal/server"
 )
+
+//go:embed kodata/web/*
+var embeddedFiles embed.FS
 
 func main() <span class="cov0" title="0">{
         // Load configuration
@@ -96,9 +101,10 @@ func main() <span class="cov0" title="0">{
 
         // Create server configuration
         serverConfig := &amp;server.Server{
-                ConfigsDir: cfg.ConfigsDir,
-                WebDir:     cfg.WebDir,
-                Logger:     logger,
+                ConfigsDir:    cfg.ConfigsDir,
+                WebDir:        cfg.WebDir,
+                Logger:        logger,
+                EmbeddedFiles: &amp;embeddedFiles,
         }
 
         // Create and start server
@@ -107,7 +113,7 @@ func main() <span class="cov0" title="0">{
                 logger.Fatalf("Failed to initialize server: %+v", err)
         }</span>
 
-        <span class="cov0" title="0">logger.Info("Starting server", "port", cfg.Port)
+        <span class="cov0" title="0">logger.Debug("Starting server", "port", cfg.Port)
         if err := srv.Start(cfg.Port); err != nil </span><span class="cov0" title="0">{
                 logger.Fatalf("Server failed: %+v", err)
         }</span>

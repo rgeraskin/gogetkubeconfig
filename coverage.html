@@ -65,7 +65,7 @@
 				
 				<option value="file4">github.com/rgeraskin/kubedepot/internal/server/router.go (90.0%)</option>
 				
-				<option value="file5">github.com/rgeraskin/kubedepot/internal/server/server.go (83.4%)</option>
+				<option value="file5">github.com/rgeraskin/kubedepot/internal/server/server.go (77.4%)</option>
 				
 				</select>
 			</div>
@@ -82,9 +82,14 @@
 		<pre class="file" id="file0" style="display: none">package main
 
 import (
+        "embed"
+
         "github.com/rgeraskin/kubedepot/internal/config"
         "github.com/rgeraskin/kubedepot/internal/server"
 )
+
+//go:embed kodata/web/*
+var embeddedFiles embed.FS
 
 func main() <span class="cov0" title="0">{
         // Load configuration
@@ -106,9 +111,10 @@ func main() <span class="cov0" title="0">{
 
         // Create server configuration
         serverConfig := &amp;server.Server{
-                ConfigsDir: cfg.ConfigsDir,
-                WebDir:     cfg.WebDir,
-                Logger:     logger,
+                ConfigsDir:    cfg.ConfigsDir,
+                WebDir:        cfg.WebDir,
+                Logger:        logger,
+                EmbeddedFiles: &amp;embeddedFiles,
         }
 
         // Create and start server
@@ -117,7 +123,7 @@ func main() <span class="cov0" title="0">{
                 logger.Fatalf("Failed to initialize server: %+v", err)
         }</span>
 
-        <span class="cov0" title="0">logger.Info("Starting server", "port", cfg.Port)
+        <span class="cov0" title="0">logger.Debug("Starting server", "port", cfg.Port)
         if err := srv.Start(cfg.Port); err != nil </span><span class="cov0" title="0">{
                 logger.Fatalf("Server failed: %+v", err)
         }</span>
@@ -265,34 +271,33 @@ import (
 )
 
 const (
-        kubeConfigApiVersion     = "v1"
-        kubeConfigKind           = "Config"
-        kubeConfigCurrentContext = "pp-dev"
+        kubeConfigApiVersion = "v1"
+        kubeConfigKind       = "Config"
 )
 
 // KubeConfig represents a kubeconfig file
 type KubeConfig struct {
-        ApiVersion string `yaml:"apiVersion" json:"apiVersion"`
-        Kind       string `yaml:"kind" json:"kind"`
+        ApiVersion string `yaml:"apiVersion"      json:"apiVersion"`
+        Kind       string `yaml:"kind"            json:"kind"`
         Clusters   []struct {
                 Cluster struct {
                         CertificateAuthorityData string `yaml:"certificate-authority-data" json:"certificate-authority-data"`
                         Server                   string `yaml:"server" json:"server"`
                 } `yaml:"cluster" json:"cluster"`
                 Name string `yaml:"name" json:"name"`
-        } `yaml:"clusters" json:"clusters"`
+        } `yaml:"clusters"        json:"clusters"`
         Contexts []struct {
                 Context struct {
                         Cluster string `yaml:"cluster" json:"cluster"`
                         User    string `yaml:"user" json:"user"`
                 } `yaml:"context" json:"context"`
                 Name string `yaml:"name" json:"name"`
-        } `yaml:"contexts" json:"contexts"`
+        } `yaml:"contexts"        json:"contexts"`
         CurrentContext string `yaml:"current-context" json:"current-context"`
         Users          []struct {
                 User any    `yaml:"user" json:"user"`
                 Name string `yaml:"name" json:"name"`
-        } `yaml:"users" json:"users"`
+        } `yaml:"users"           json:"users"`
 }
 
 // NewKubeConfig creates a new KubeConfig with default values
@@ -393,11 +398,11 @@ func mergeKubeConfigs(config1 *KubeConfig, config2 *KubeConfig) (*KubeConfig, er
         merged.Contexts = append(config1.Contexts, config2.Contexts...)
         merged.Users = append(config1.Users, config2.Users...)
 
-        // Set current context
+        // Set current context: use first config's current context always
         if config1.CurrentContext == "" </span><span class="cov8" title="1">{
                 merged.CurrentContext = config2.CurrentContext
         }</span> else<span class="cov8" title="1"> {
-                merged.CurrentContext = kubeConfigCurrentContext // default value
+                merged.CurrentContext = config1.CurrentContext
         }</span>
 
         <span class="cov8" title="1">return merged, nil</span>
@@ -437,6 +442,7 @@ func (s *Server) Start(port string) error <span class="cov8" title="1">{
 		<pre class="file" id="file5" style="display: none">package server
 
 import (
+        "embed"
         "encoding/json"
         "html/template"
         "io"
@@ -456,6 +462,7 @@ type Server struct {
         WebDir        string
         Logger        *log.Logger
         LoadedConfigs map[string]*KubeConfig // Pre-loaded configs to avoid file system changes affecting runtime
+        EmbeddedFiles *embed.FS              // Optional embedded files for container deployment
 }
 
 // NewServer creates a new server instance
@@ -465,6 +472,7 @@ func NewServer(appConfig *Server) (*Server, error) <span class="cov8" title="1">
                 WebDir:        appConfig.WebDir,
                 Logger:        appConfig.Logger,
                 LoadedConfigs: make(map[string]*KubeConfig),
+                EmbeddedFiles: appConfig.EmbeddedFiles,
         }
 
         // Load all configs on startup
@@ -488,12 +496,30 @@ func NewServer(appConfig *Server) (*Server, error) <span class="cov8" title="1">
 // Note: Start method moved to router.go for better separation of concerns
 
 func (s *Server) TemplateIndex(w http.ResponseWriter) error <span class="cov8" title="1">{
-        // html template with list of available configs
+        var tmpl *template.Template
+        var err error
+
+        // Try to load from WebDir first (for development)
         templatePath := filepath.Join(s.WebDir, "index.html")
-        tmpl, err := template.ParseFiles(templatePath)
-        if err != nil </span><span class="cov8" title="1">{
-                return errorx.Decorate(err, "failed to parse index template file")
+        if _, err := os.Stat(templatePath); err == nil </span><span class="cov8" title="1">{
+                tmpl, err = template.ParseFiles(templatePath)
+                if err != nil </span><span class="cov0" title="0">{
+                        return errorx.Decorate(err, "failed to parse index template file from WebDir")
+                }</span>
+        } else<span class="cov8" title="1"> if s.EmbeddedFiles != nil </span><span class="cov0" title="0">{
+                // Fall back to embedded files (for production/container)
+                templateContent, err := s.EmbeddedFiles.ReadFile("kodata/web/index.html")
+                if err != nil </span><span class="cov0" title="0">{
+                        return errorx.Decorate(err, "failed to read embedded index template")
+                }</span>
+                <span class="cov0" title="0">tmpl, err = template.New("index.html").Parse(string(templateContent))
+                if err != nil </span><span class="cov0" title="0">{
+                        return errorx.Decorate(err, "failed to parse embedded index template")
+                }</span>
+        } else<span class="cov8" title="1"> {
+                return errorx.InternalError.New("neither WebDir nor EmbeddedFiles available for template")
         }</span>
+
         <span class="cov8" title="1">names, err := s.listConfigs()
         if err != nil </span><span class="cov0" title="0">{
                 return errorx.Decorate(err, "failed to list configs in dir")
@@ -703,12 +729,34 @@ func (s *Server) readConfigFiles() ([]os.DirEntry, error) <span class="cov8" tit
 
 // loadSingleConfig loads a single config file and stores it in LoadedConfigs
 func (s *Server) loadSingleConfig(file os.DirEntry) error <span class="cov8" title="1">{
+        // Skip directories
         if file.IsDir() </span><span class="cov0" title="0">{
-                return nil // Skip directories
+                s.Logger.Debug("Skipping directory", "file", file.Name())
+                return nil
         }</span>
 
         <span class="cov8" title="1">filePath := filepath.Join(s.ConfigsDir, file.Name())
-        configName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+
+        // Skip hidden files and Kubernetes ConfigMap metadata files
+        fileName := file.Name()
+        if strings.HasPrefix(fileName, "..") </span><span class="cov0" title="0">{
+                s.Logger.Debug("Skipping Kubernetes ConfigMap metadata file", "file", fileName)
+                return nil
+        }</span>
+
+        // Additional check: verify the file path is actually a regular file
+        // This handles cases where symlinks might not be detected properly by IsDir()
+        <span class="cov8" title="1">fileInfo, err := os.Stat(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                s.Logger.Debug("Skipping file due to stat error", "file", fileName, "error", err)
+                return nil
+        }</span>
+        <span class="cov8" title="1">if fileInfo.IsDir() </span><span class="cov0" title="0">{
+                s.Logger.Debug("Skipping directory", "file", fileName)
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">configName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
         s.Logger.Debug("Loading config file", "path", filePath, "name", configName)
 

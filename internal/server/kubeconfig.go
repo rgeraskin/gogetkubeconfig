@@ -9,34 +9,33 @@ import (
 )
 
 const (
-	kubeConfigApiVersion     = "v1"
-	kubeConfigKind           = "Config"
-	kubeConfigCurrentContext = "pp-dev"
+	kubeConfigApiVersion = "v1"
+	kubeConfigKind       = "Config"
 )
 
 // KubeConfig represents a kubeconfig file
 type KubeConfig struct {
-	ApiVersion string `yaml:"apiVersion" json:"apiVersion"`
-	Kind       string `yaml:"kind" json:"kind"`
+	ApiVersion string `yaml:"apiVersion"      json:"apiVersion"`
+	Kind       string `yaml:"kind"            json:"kind"`
 	Clusters   []struct {
 		Cluster struct {
 			CertificateAuthorityData string `yaml:"certificate-authority-data" json:"certificate-authority-data"`
 			Server                   string `yaml:"server" json:"server"`
 		} `yaml:"cluster" json:"cluster"`
 		Name string `yaml:"name" json:"name"`
-	} `yaml:"clusters" json:"clusters"`
+	} `yaml:"clusters"        json:"clusters"`
 	Contexts []struct {
 		Context struct {
 			Cluster string `yaml:"cluster" json:"cluster"`
 			User    string `yaml:"user" json:"user"`
 		} `yaml:"context" json:"context"`
 		Name string `yaml:"name" json:"name"`
-	} `yaml:"contexts" json:"contexts"`
+	} `yaml:"contexts"        json:"contexts"`
 	CurrentContext string `yaml:"current-context" json:"current-context"`
 	Users          []struct {
 		User any    `yaml:"user" json:"user"`
 		Name string `yaml:"name" json:"name"`
-	} `yaml:"users" json:"users"`
+	} `yaml:"users"           json:"users"`
 }
 
 // NewKubeConfig creates a new KubeConfig with default values
@@ -137,11 +136,11 @@ func mergeKubeConfigs(config1 *KubeConfig, config2 *KubeConfig) (*KubeConfig, er
 	merged.Contexts = append(config1.Contexts, config2.Contexts...)
 	merged.Users = append(config1.Users, config2.Users...)
 
-	// Set current context
+	// Set current context: use first config's current context always
 	if config1.CurrentContext == "" {
 		merged.CurrentContext = config2.CurrentContext
 	} else {
-		merged.CurrentContext = kubeConfigCurrentContext // default value
+		merged.CurrentContext = config1.CurrentContext
 	}
 
 	return merged, nil

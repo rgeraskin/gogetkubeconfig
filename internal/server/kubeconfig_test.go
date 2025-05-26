@@ -461,7 +461,7 @@ func TestMergeKubeConfigs_CurrentContext(t *testing.T) {
 			name:               "config1 has current context",
 			config1CurrentCtx:  "config1-context",
 			config2CurrentCtx:  "config2-context",
-			expectedCurrentCtx: kubeConfigCurrentContext, // Should use default
+			expectedCurrentCtx: "config1-context", // Should use config1's context
 		},
 	}
 
@@ -865,10 +865,10 @@ func TestMergeKubeConfigs_SuccessfulMerge(t *testing.T) {
 	if len(merged.Users) != 2 {
 		t.Errorf("Expected 2 users, got %d", len(merged.Users))
 	}
-	if merged.CurrentContext != kubeConfigCurrentContext {
+	if merged.CurrentContext != "config1-context" {
 		t.Errorf(
 			"Expected current context %s, got %s",
-			kubeConfigCurrentContext,
+			"config1-context",
 			merged.CurrentContext,
 		)
 	}
