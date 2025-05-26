@@ -2,8 +2,22 @@ apiVersion: v1
 entries:
   kubedepot:
   - apiVersion: v2
+    appVersion: 0.1.1
+    created: "2025-05-26T18:11:32.293262928Z"
+    dependencies:
+    - name: hull
+      repository: https://vidispine.github.io/hull
+      version: 1.33.0
+    description: Helm chart for KubeDepot
+    digest: 19fcd4350a3ec172f5cd3630ddd5ab65a94ab87511b712218c20ec8aa29a9bd7
+    name: kubedepot
+    type: application
+    urls:
+    - https://github.com/rgeraskin/kubedepot/raw/helm/kubedepot-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
     appVersion: 0.1.0
-    created: "2025-05-26T17:57:47.667485099Z"
+    created: "2025-05-26T18:11:32.282649624Z"
     dependencies:
     - name: hull
       repository: https://vidispine.github.io/hull
@@ -15,4 +29,4 @@ entries:
     urls:
     - https://github.com/rgeraskin/kubedepot/raw/helm/kubedepot-0.1.0.tgz
     version: 0.1.0
-generated: "2025-05-26T17:57:47.656294906Z"
+generated: "2025-05-26T18:11:32.271565515Z"
