@@ -8,6 +8,12 @@ A simple web service for distributing Kubernetes configuration files.
 - Get a specific kubeconfig
 - Merge multiple kubeconfigs
 
+Just like nginx serving several static files, but with a nice web UI and the ability to merge configs 😊
+
+> ⚠️ This is a simple web service for distributing kubeconfigs that don't contain sensitive data. It intentionally has no authentication, encryption, authorization, or RBAC features.
+
+For example, it's fine for distributing configs that use AWS CLI authentication, but not for configs with admin certificates or service account tokens.
+
 ## Web Interface
 
 ![KubeDepot Web UI](kubedepot-webui.png)
