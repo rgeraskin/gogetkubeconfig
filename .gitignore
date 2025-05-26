@@ -24,7 +24,11 @@
 
 # OS files
 .DS_Storeconfigs
+.DS_Store
 
 /_configs
+/helm/_kubeconfigs/
 /dist/
-/cmd/kubedepot/kodata/
+/cmd/kubedepot/kodata
+/helm/charts
+*.tgz

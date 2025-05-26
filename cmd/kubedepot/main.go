@@ -42,7 +42,7 @@ func main() {
 		logger.Fatalf("Failed to initialize server: %+v", err)
 	}
 
-	logger.Info("Starting server", "port", cfg.Port)
+	logger.Debug("Starting server", "port", cfg.Port)
 	if err := srv.Start(cfg.Port); err != nil {
 		logger.Fatalf("Server failed: %+v", err)
 	}

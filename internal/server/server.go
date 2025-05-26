@@ -288,12 +288,34 @@ func (s *Server) readConfigFiles() ([]os.DirEntry, error) {
 
 // loadSingleConfig loads a single config file and stores it in LoadedConfigs
 func (s *Server) loadSingleConfig(file os.DirEntry) error {
+	// Skip directories
 	if file.IsDir() {
-		return nil // Skip directories
+		s.Logger.Debug("Skipping directory", "file", file.Name())
+		return nil
 	}
 
 	filePath := filepath.Join(s.ConfigsDir, file.Name())
-	configName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+
+	// Skip hidden files and Kubernetes ConfigMap metadata files
+	fileName := file.Name()
+	if strings.HasPrefix(fileName, "..") {
+		s.Logger.Debug("Skipping Kubernetes ConfigMap metadata file", "file", fileName)
+		return nil
+	}
+
+	// Additional check: verify the file path is actually a regular file
+	// This handles cases where symlinks might not be detected properly by IsDir()
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		s.Logger.Debug("Skipping file due to stat error", "file", fileName, "error", err)
+		return nil
+	}
+	if fileInfo.IsDir() {
+		s.Logger.Debug("Skipping directory", "file", fileName)
+		return nil
+	}
+
+	configName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
 	s.Logger.Debug("Loading config file", "path", filePath, "name", configName)
 

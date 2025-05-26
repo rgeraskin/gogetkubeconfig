@@ -1,0 +1,78 @@
+hull:
+  config:
+    general:
+      noObjectNamePrefixes: true
+      rbac: false
+  objects:
+    serviceaccount:
+      default:
+        enabled: false
+    deployment:
+      kubedepot:
+        pod:
+          containers:
+            kubedepot:
+              image:
+                repository: rgeraskin/kubedepot
+                tag: 0.1.1
+              env:
+                CONFIGS_DIR:
+                  value: /configs
+              ports:
+                http:
+                  containerPort: 8080
+              volumeMounts:
+                appconfig:
+                  name: kubedepot
+                  mountPath: /configs
+          volumes:
+            kubedepot:
+              configMap:
+                name: kubedepot
+    configmap:
+      kubedepot:
+        # data:
+        #   cluster1.yaml:
+        #     path: _kubeconfigs/cluster1.yaml
+        #   cluster2.yaml:
+        #     inline:
+        #       apiVersion: v1
+        #       kind: Config
+        #       clusters:
+        #         - name: cluster2
+        #           cluster:
+        #             server: https://api.cluster2.example.com:6443
+        #             certificate-authority-data: certificate-authority-data
+        #       contexts:
+        #         - name: cluster2-context
+        #           context:
+        #             cluster: cluster2
+        #             user: cluster2-admin
+        #       users:
+        #         - name: cluster2-admin
+        #           user:
+        #             client-certificate-data: client-certificate-data
+        #             client-key-data: client-key-data
+        #       current-context: cluster2-context
+    service:
+      kubedepot:
+        ports:
+          http:
+            port: 8080
+            targetPort: http
+        type: ClusterIP
+    ingress:
+      kubedepot:
+        rules:
+          kubedepot:
+            host: kubedepot.local
+            http:
+              paths:
+                standard:
+                  path: /
+                  pathType: ImplementationSpecific
+                  backend:
+                    service:
+                      name: kubedepot
+                      port:
+                        name: http
