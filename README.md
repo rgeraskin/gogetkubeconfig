@@ -1,6 +1,6 @@
 # KubeDepot
 
-A web service that provides kubeconfig YAML files on request.
+A simple web service for distributing Kubernetes configuration files.
 
 ## Features
 
@@ -8,23 +8,22 @@ A web service that provides kubeconfig YAML files on request.
 - Get a specific kubeconfig
 - Merge multiple kubeconfigs
 
+## Web Interface
+
+![KubeDepot Web UI](kubedepot-webui.png)
+
+Also, it has API endpoints for getting kubeconfigs.
+
 ## Usage
 
-Deploy the application using the Helm chart. Check out the [KubeDepot Helm Chart Usage](https://github.com/rgeraskin/kubedepot/blob/master/HELM.md) for detailed chart configuration information.
+Deploy the application using the Helm chart.
+
+Check out the [KubeDepot Helm Chart Usage](https://github.com/rgeraskin/kubedepot/blob/master/HELM.md) for detailed chart configuration information.
 
 ```bash
 helm repo add kubedepot https://rgeraskin.github.io/kubedepot/
 helm install kubedepot kubedepot/kubedepot # This won't work without kubeconfigs
 ```
-
-## Configuration
-
-You can configure the application using these environment variables:
-
-- `CONFIGS_DIR`: Directory containing kubeconfig files (default: `./configs`)
-- `PORT`: HTTP server port (default: `8080`)
-- `WEB_DIR`: Directory containing web templates (default: `./web`)
-- `DEBUG`: Enable debug mode (default: `false`)
 
 ## Development
 
@@ -35,6 +34,15 @@ You can configure the application using these environment variables:
 3. Build the application: `go build -o ./kubedepot ./cmd/kubedepot/`
 
 The application includes embedded web templates for container deployment, but you can also use external templates from the `WEB_DIR` during development.
+
+### Application Configuration
+
+You can configure the application using these environment variables:
+
+- `CONFIGS_DIR`: Directory containing kubeconfig files (default: `./configs`)
+- `PORT`: HTTP server port (default: `8080`)
+- `WEB_DIR`: Directory containing web templates (default: `./web`)
+- `DEBUG`: Enable debug mode (default: `false`)
 
 ### Starting the Server
 
